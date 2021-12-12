@@ -31,7 +31,7 @@ export function useConfetti({
       }
       confetti.reset();
     };
-  });
+  }, []);
 
   if (makeItRain === isNumber(intervalHandle.current)) return;
 

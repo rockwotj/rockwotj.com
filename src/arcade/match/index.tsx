@@ -1,9 +1,10 @@
-import React from "react";
+import React, {useState} from "react";
 import styled from "styled-components";
 import { useMemoryMatchGame } from "./logic";
 import { useConfetti } from "../../hooks/useConfetti";
 import { GameOverBanner, GameOverOverlay } from "./GameOver";
 import { Card } from "./Card";
+import {useTimeout} from "../../hooks/useTimeout";
 
 const CardGrid = styled.div`
   position: relative; // For the overlay banner
@@ -20,7 +21,9 @@ const CardGrid = styled.div`
 
 export const MemoryMatchGame: React.VFC = () => {
   const { cards, revealed, onSelected, gameOver } = useMemoryMatchGame();
-  useConfetti({ makeItRain: gameOver });
+  const [showGameOver, setShowGameOver] = useState(false);
+  useTimeout(() => setShowGameOver(true), gameOver ? 1000 : null);
+  useConfetti({ makeItRain: showGameOver });
   return (
     <CardGrid>
       {cards.map((cardId, idx) => (
@@ -31,7 +34,7 @@ export const MemoryMatchGame: React.VFC = () => {
           onClick={() => onSelected(idx)}
         />
       ))}
-      {gameOver ? (
+      {showGameOver ? (
         <GameOverOverlay>
           <GameOverBanner />
         </GameOverOverlay>
