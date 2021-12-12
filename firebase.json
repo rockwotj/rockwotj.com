@@ -1,6 +1,8 @@
 {
   "hosting": {
     "public": "dist",
+    "cleanUrls": true,
+    "trailingSlash": true,
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -10,6 +12,10 @@
       {
         "source": "**",
         "destination": "/index.html"
+      },
+      {
+        "source": "arcade/**",
+        "destination": "/arcade/index.html"
       }
     ]
   }
