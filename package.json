@@ -1,6 +1,7 @@
 {
-  "name": "my-vue-app",
-  "version": "0.0.0",
+  "name": "rockwotj.com",
+  "private": true,
+  "repository": "github:rockwotj/rockwotj.com",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
