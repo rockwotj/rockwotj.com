@@ -1,16 +1,22 @@
 import React from "react";
 import styled from "styled-components";
+import {startCase} from 'lodash-es';
 
-const COLORS = [
-  "Crimson",
-  "DarkGreen",
-  "DodgerBlue",
-  "MediumPurple",
-  "DeepPink",
-  "Gold",
-  "LimeGreen",
-  "DarkOrange",
-] as const;
+interface CardInfo {
+  readonly backgroundColor: string;
+  readonly textColor: string;
+}
+
+const CARDS: readonly CardInfo[] = [
+  {backgroundColor: "Crimson", textColor: 'white'},
+  {backgroundColor: "DarkGreen", textColor: 'white'},
+  {backgroundColor: "DodgerBlue", textColor: 'white'},
+  {backgroundColor: "MediumPurple", textColor: 'white'},
+  {backgroundColor: "DeepPink", textColor: 'white'},
+  {backgroundColor: "Gold", textColor: 'black'},
+  {backgroundColor: "LimeGreen", textColor: 'black'},
+  {backgroundColor: "DarkOrange", textColor: 'white'},
+];
 const BaseMemoryCard = styled.div`
   position: absolute;
   top: 0;
@@ -28,23 +34,19 @@ const BaseMemoryCard = styled.div`
   }
 `;
 const RevealedMemoryCard = styled(BaseMemoryCard)<{ readonly cardId: number }>`
-  background-color: ${({ cardId }) => COLORS[cardId]};
+  background-color: ${({ cardId }) => CARDS[cardId].backgroundColor};
   transform: rotateY(180deg);
   &::before {
-    content: "${({ cardId }) => COLORS[cardId]}";
-    background-color: white;
-    padding: 1rem;
+    content: "${({ cardId }) => startCase(CARDS[cardId].backgroundColor)}";
+    color: ${({ cardId }) => CARDS[cardId].textColor};
+    font-weight: 500;
+    text-align: center;
+    padding: 0.25rem;
   }
 `;
 const HiddenMemoryCard = styled(BaseMemoryCard)<{ readonly cardId: number }>`
   background-color: white;
   border: medium solid black;
-  padding: 0.25rem;
-  &::before {
-    content: "";
-    flex: 1;
-    background-color: SaddleBrown;
-  }
 `;
 const CardWrapper = styled.div`
   perspective: min(100vh, 100vw);
