@@ -20,10 +20,7 @@ export function useMemoryMatchGame() {
   const onSelected = useCallback(
     (selection: number) => {
       if (selected.size > 1) return; // Wait for animation to finish.
-      if (solved.has(selection)) return;
-      if (selected.has(selection)) {
-        return toggleSelected(selection);
-      }
+      if (solved.has(selection) || selected.has(selection)) return;
       const [otherSelection] = [...selected];
       if (cards[selection] === cards[otherSelection]) {
         addSolved(selection);
