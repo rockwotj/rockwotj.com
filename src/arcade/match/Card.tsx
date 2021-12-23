@@ -71,8 +71,12 @@ interface CardProps {
 }
 
 export const Card: React.VFC<CardProps> = ({ cardId, revealed, onClick }) => {
+  const handleSelectionEvent = (ev) => {
+     onClick();
+     ev.preventDefault();
+  };
   return (
-    <CardWrapper onClick={onClick}>
+    <CardWrapper mouseUp={handleSelectionEvent} touchEnd={handleSelectionEvent}>
       <CardFlipper isFlipped={revealed}>
         <RevealedMemoryCard cardId={cardId} />
         <HiddenMemoryCard cardId={cardId} />
