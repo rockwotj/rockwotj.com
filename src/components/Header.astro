@@ -9,7 +9,7 @@ const currentPath = Astro.url.pathname;
 ---
 <header>
   <nav>
-    {LINKS.map(({name, href}, idx) => (<a class={href === currentPath ? "current" : ""} href={href}>{name}</a>))}
+    {LINKS.map(({name, href}) => (<a class={href === currentPath ? "current" : ""} href={href}>{name}</a>))}
   </nav>
   <slot />
 </header>
