@@ -1,0 +1,16 @@
+---
+const LINKS = [
+  {name: "Home", href: "/"},
+  {name: "Resume", href: "/resume"},
+  {name: "Blog", href: "https://blog.rockwotj.com/"},
+];
+
+const currentPath = Astro.url.pathname;
+---
+<header>
+  <nav>
+    {LINKS.map(({name, href}, idx) => (<a class={href === currentPath ? "current" : ""} href={href}>{name}</a>))}
+  </nav>
+  <slot />
+</header>
+

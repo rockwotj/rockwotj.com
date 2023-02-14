@@ -1,0 +1,150 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Resume">
+  <div slot="header">
+    <h1>Tyler Rockwood</h1>
+    <p>Senior Software Engineer<br>Wisconsin, USA</p>
+  </div>
+  <section id="work">
+    <h2>Work Experience</h2>
+    <h4>Shortwave</h4>
+    <p class="subheading">Founding Engineer | January, 2020 - Current</p>
+    <ul>
+      <li>
+        Fought for the design of Shortwave's initial architecture and infrastructure. Moved us to an event based
+        architecture with an actor based concurrency model for each account.
+      </li>
+      <li>
+        Developed a browser engine to normalize non-marketing emails into a canonical structure that allowed us to
+        render messages faster, and remove undesired styling.
+      </li>
+      <li>
+        Implemented the pipeline for sanitizing HTML emails - our biggest attack vector for security issues. 
+        Also implemented a solution to automatically make emails dark mode.
+      </li>
+      <li>
+        Owned the company's developer experience, ensuring that local development was hermetic, required little setup
+        and mirrored production as much as possible. New engineers where able to get a local version of the product up
+        and running on their first day of work.
+      </li>
+      <li>
+        Created the solution behind removing redundant quoted history from emails. Doing this well was key to
+        Shortwave's UI, which was trying to make email more conversational like a chat application. Supported multiple
+        languages.
+      </li>
+      <li>
+        Developed the <a href="https://www.shortwave.com/blog/search-smarter-not-harder/">latest search experience</a> 
+        from the UX to the ElasticSearch integration. Created a small query language lexer, parser, etc. Included a 
+        suggestion/autocomplete engine and syntax highlighting. Was compatible with Gmail's search language for
+        customers migrating to our product. Got buy in from leadership on the project and swiftly implemented a robust,
+        well tested and designed solution.
+        <br>
+        As part of this project I also improved our query performance by 4x by tuning ElasticSearch. I overhauled the
+        migration tooling and simplified the indexing schema stored in Postgres to cut the number of manual steps of
+        migrating to a new index by 50%.
+      </li>
+    </ul>
+    <h4>Google Inc</h4>
+    <p class="subheading">Cloud Firestore | April, 2018 - January, 2020</p>
+    <ul>
+
+      <li>
+        Added three new classes of queries to Cloud Firestore.
+        <ul>
+          <li>
+            Queries on <a rel="noopener noreferrer"
+              href="https://firebase.blog/posts/2018/08/better-arrays-in-cloud-firestore">array containment</a> which
+            involved rewriting the indexer to be simpler, more flexible and more
+            performant to support inverted indexes required for fast index based lookup.
+          </li>
+          <li>
+            Added support for <a rel="noopener noreferrer"
+              href="https://firebase.blog/posts/2019/06/understanding-collection-group-queries">Collection Group
+              queries</a>, which allowed for more flexible schemas. This required
+            introducing the first breaking change to the Firestore Security Rules engine allowing developers to write
+            security rules for these queries.
+          </li>
+          <li>
+            Extended the Firestore query planner to support <a rel="noopener noreferrer"
+              href="https://firebase.blog/posts/2019/11/cloud-firestore-now-supports-in-queries">disjuntive
+              queries</a> (IN queries) - a feature that had
+            been on the roadmap for 10 years. Also laid the groundwork for not equals queries (!=) and not in (NOT IN)
+            queries.
+          </li>
+        </ul>
+      </li>
+      <li>
+        As part of working in Cloud Firestore - I also dove into work on the Security Rules compiler + runtime. These
+        rules are related to CEL and during the process of other work found <a rel="noopener noreferrer"
+          href="https://github.com/google/cel-spec/issues/33">holes in the spec</a> and prototyped the initial support
+        of variables within the language.
+      </li>
+      <li>Rewrote the legacy Cloud Datastore query planner to use new infrastructure. Derisked using anonamization
+        techniques and computing the new query plans in a <a rel="noopener noreferrer"
+          href="https://github.blog/2016-02-03-scientist/">shadow mode</a>, reporting differences.</li>
+      <li>
+        Created the Firestore's Reverse Query Matcher (RQM). Cloud Firestore allows for subscribing to queries and
+        being notified of changes to the result set. This requires a matcher that, given a written document in the
+        database, can efficently compute the set of listeners that need to be notified.
+        <br>
+        This is an invertion of the traditional query planner for databases. Used novel data structures and techniques
+        to make a 100x improvement on the previous solution. The underlying implementation was based upon the same
+        principles as the query planner, which allowed RQM to be extended easily as the planner gained support for new
+        queries. For each new query that I implemented, I extended the reverse query engine in conjuction with the
+        query planner.
+      </li>
+      <li>
+        Created a document on the query semantics of Cloud Firestore, describing the principles behind the query
+        planner with detailed visuals of all the scans and plans that the system performed. This document became a key
+        onboarding document for all new engineers on the Cloud Firestore team and helped spread knowledge that used to
+        only be held by a small subset of the team.
+      </li>
+    </ul>
+    <p class="subheading">Firebase Emulator Suite | April, 2017 - January, 2020</p>
+    <ul>
+      <li>
+        Created the initial version of the Realtime Database emulator for other internal teams, which eventually
+        became an offical
+        product and suite of tools for Firebase. The emulator was a stripped down version of the production server,
+        which allowed for a low maintaince cost.
+      </li>
+      <li>
+        Mentored and oversaw the development of the Cloud Firestore local emulator. This included teaching several
+        other engineers the details of Cloud Firestore's consistency &amp; transactional model, how the system was
+        architectured overall, and the query semantics. Performed detailed code reviews to ensure that the emulator
+        was as similar to production as possible.
+      </li>
+    </ul>
+    </p>
+    <p class="subheading">Firebase Realtime Database (RTDB) | July, 2016 - January, 2020</p>
+    <ul>
+      <li>
+        Pioneered a new underlying storage layer for the RTDB based on a clustered key/value store. Help secure and
+        mentor new team members to work on this system, which eventually become a large focus for the whole RTDB team.
+      </li>
+      <li>
+        Enabled 10x performance improvements to RTDB storage billing infrastructure by reverse engineering MongoDB's
+        WiredTiger database engine storage format. Also allowed us to calcuate storage bills for our largest
+        customers, which was infeasible in the old infrastructure.
+      </li>
+      <li>
+        Did a great deal of performance tuning - Reduced GC, memory allocations, and added instrumentation + tooling
+        for heap dumps.
+      </li>
+    </ul>
+  </section>
+  <section id="education">
+    <h2>Education</h2>
+    <h4>Rose-Hulman Institute of Technology</h4>
+    <p class="subheading">Computer Science &amp; Software Engineering | September, 2012 - May 2016</p>
+    <p>
+      John T. Royse Award winner, President of Phi Gamma Delta, President of Fellowship of Christain Athletes, 2 sport varsity athlete.
+    </p>
+  </section>
+</Layout>
+<style> 
+  .subheading {
+    color: var(--text-light);
+  }
+</style>
