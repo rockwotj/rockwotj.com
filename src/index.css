@@ -1,9 +1,0 @@
-.contact > p {
-  margin: 0.5rem;
-}
-
-header > nav > a.current {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-

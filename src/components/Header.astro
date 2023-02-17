@@ -1,7 +1,7 @@
 ---
 const LINKS = [
   {name: "Home", href: "/"},
-  {name: "Resume", href: "/resume"},
+  {name: "Resume", href: "/resume/"},
   {name: "Blog", href: "https://blog.rockwotj.com/"},
 ];
 
@@ -13,4 +13,9 @@ const currentPath = Astro.url.pathname;
   </nav>
   <slot />
 </header>
-
+<style>
+header > nav > a.current {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+</style>

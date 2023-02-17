@@ -6,6 +6,14 @@ import Layout from '../layouts/Layout.astro';
     <h1>Tyler Rockwood</h1>
     <p>Senior Software Engineer<br>Wisconsin, USA</p>
   </div>
+  <div id="social-links">
+    <a href="https://github.com/rockwotj" rel="noopener noreferrer">
+      Github
+    </a>
+    <a href="https://www.linkedin.com/in/rockwotj" rel="noopener noreferrer">
+      LinkedIn
+    </a>
+  </div>
   <section id="work">
     <h2>Work Experience</h2>
     <h4>Shortwave</h4>
@@ -34,7 +42,7 @@ import Layout from '../layouts/Layout.astro';
         languages.
       </li>
       <li>
-        Developed the <a href="https://www.shortwave.com/blog/search-smarter-not-harder/">latest search experience</a> 
+        Developed the <a href="https://www.shortwave.com/blog/search-smarter-not-harder/" rel="noopener noreferrer">latest search experience</a> 
         from the UX to the ElasticSearch integration. Created a small query language lexer, parser, etc. Included a 
         suggestion/autocomplete engine and syntax highlighting. Was compatible with Gmail's search language for
         customers migrating to our product. Got buy in from leadership on the project and swiftly implemented a robust,
@@ -53,20 +61,20 @@ import Layout from '../layouts/Layout.astro';
         <ul>
           <li>
             Queries on <a rel="noopener noreferrer"
-              href="https://firebase.blog/posts/2018/08/better-arrays-in-cloud-firestore">array containment</a> which
+              href="https://firebase.blog/posts/2018/08/better-arrays-in-cloud-firestore" rel="noopener noreferrer">array containment</a> which
             involved rewriting the indexer to be simpler, more flexible and more
             performant to support inverted indexes required for fast index based lookup.
           </li>
           <li>
             Added support for <a rel="noopener noreferrer"
-              href="https://firebase.blog/posts/2019/06/understanding-collection-group-queries">Collection Group
+              href="https://firebase.blog/posts/2019/06/understanding-collection-group-queries" rel="noopener noreferrer">Collection Group
               queries</a>, which allowed for more flexible schemas. This required
             introducing the first breaking change to the Firestore Security Rules engine allowing developers to write
             security rules for these queries.
           </li>
           <li>
             Extended the Firestore query planner to support <a rel="noopener noreferrer"
-              href="https://firebase.blog/posts/2019/11/cloud-firestore-now-supports-in-queries">disjuntive
+              href="https://firebase.blog/posts/2019/11/cloud-firestore-now-supports-in-queries" rel="noopener noreferrer">disjuntive
               queries</a> (IN queries) - a feature that had
             been on the roadmap for 10 years. Also laid the groundwork for not equals queries (!=) and not in (NOT IN)
             queries.
@@ -161,5 +169,10 @@ import Layout from '../layouts/Layout.astro';
 <style> 
   .subheading {
     color: var(--text-light);
+  }
+  #social-links {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 16px;
   }
 </style>
