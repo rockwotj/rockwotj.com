@@ -24,6 +24,12 @@ import Layout from '../layouts/Layout.astro';
         architecture with an actor based concurrency model for each account.
       </li>
       <li>
+        Built locally latency compensated user actions that were then reconciled with the server. This greatly 
+        improved traction of our app and made user actions feel instantaneous. Involved creating a complete local 
+        in-memory representation of the synchronized server state that allowed the client to overlay it's own 
+        temporary actions until the server acknowledged the request.
+      </li>
+      <li>
         Developed a browser engine to normalize non-marketing emails into a canonical structure that allowed us to
         render messages faster, and remove undesired styling.
       </li>
