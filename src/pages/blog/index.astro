@@ -1,0 +1,92 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const posts = await Astro.glob('./*.md');
+
+const sortedPosts = posts
+  .filter(post => post.frontmatter.title)
+  .sort((a, b) => {
+    const dateA = new Date(a.frontmatter.date);
+    const dateB = new Date(b.frontmatter.date);
+    return dateB.getTime() - dateA.getTime();
+  });
+---
+
+<Layout title="Blog">
+  <div slot="header">
+    <h2>Blog</h2>
+    <p>Technical writings about software engineering, databases, WebAssembly, and more.</p>
+  </div>
+
+  <div class="posts-list">
+    {sortedPosts.map(post => {
+      const date = new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      return (
+        <article class="post-preview">
+          {post.frontmatter.coverImage && (
+            <a href={post.url} class="cover-image-link">
+              <img src={post.frontmatter.coverImage} alt={post.frontmatter.title} class="cover-image" />
+            </a>
+          )}
+          <h3>
+            <a href={post.url}>{post.frontmatter.title}</a>
+          </h3>
+          <div class="post-meta">
+            <time datetime={post.frontmatter.date}>{date}</time>
+            <span> · {post.frontmatter.readTime} min read</span>
+          </div>
+        </article>
+      );
+    })}
+  </div>
+</Layout>
+
+<style>
+  .posts-list {
+    margin-top: 2rem;
+  }
+
+  .post-preview {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .post-preview:last-child {
+    border-bottom: none;
+  }
+
+  .post-preview h3 {
+    margin: 0 0 0.5rem 0;
+  }
+
+  .post-preview h3 a {
+    text-decoration: none;
+    color: var(--text);
+  }
+
+  .post-preview h3 a:hover {
+    color: var(--accent);
+  }
+
+  .post-meta {
+    color: var(--text-light);
+    font-size: 0.9rem;
+  }
+
+  .cover-image-link {
+    display: block;
+    margin-bottom: 1rem;
+  }
+
+  .cover-image {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+</style>

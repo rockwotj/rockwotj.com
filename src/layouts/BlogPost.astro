@@ -1,0 +1,62 @@
+---
+import Layout from './Layout.astro';
+
+export interface Props {
+  title: string;
+  date: string;
+  readTime: number;
+  coverImage?: string;
+}
+
+const { title, date, readTime, coverImage } = Astro.props.frontmatter;
+const formattedDate = new Date(date).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+});
+---
+
+<Layout title={title}>
+  <article>
+    <header>
+      <h1>{title}</h1>
+      <div class="post-meta">
+        <time datetime={date}>{formattedDate}</time>
+        <span> · {readTime} min read</span>
+      </div>
+    </header>
+    {coverImage && (
+      <img src={coverImage} alt={title} class="cover-image" />
+    )}
+    <div class="post-content">
+      <slot />
+    </div>
+    <footer>
+      <a href="/blog/">← Back to all posts</a>
+    </footer>
+  </article>
+</Layout>
+
+<style>
+  .post-meta {
+    color: var(--text-light);
+    margin-bottom: 2rem;
+  }
+
+  .cover-image {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+
+  .post-content {
+    margin: 2rem 0;
+  }
+
+  article footer {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+</style>
