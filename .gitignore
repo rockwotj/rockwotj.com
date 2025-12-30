@@ -1,5 +1,6 @@
 # build output
 dist/
+.firebase/
 
 # generated types
 .astro/
