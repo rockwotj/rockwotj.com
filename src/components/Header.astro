@@ -1,15 +1,18 @@
 ---
 const LINKS = [
-  {name: "Resume", href: "/resume/"},
   {name: "Home", href: "/"},
   {name: "Blog", href: "/blog/"},
+  {name: "Resume", href: "/resume/"},
 ];
 
 const currentPath = Astro.url.pathname;
 ---
 <header>
   <nav>
-    {LINKS.map(({name, href}) => (<a class={href === currentPath ? "current" : ""} href={href}>{name}</a>))}
+    <ul><li><img width="40" height="40" src="/logo.png"/> <strong>Tyler Rockwood</strong></li></ul>
+    <ul>
+      {LINKS.map(({name, href}) => (<li key={href}><a class={href === currentPath ? "current" : ""} href={href}>{name}</a></li>))}
+    </ul>
   </nav>
   <slot />
 </header>
