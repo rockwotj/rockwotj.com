@@ -1,0 +1,103 @@
+---
+export interface Props {
+  markdownContent: string;
+}
+
+const { markdownContent } = Astro.props;
+---
+
+<div class="copy-markdown-wrapper">
+  <button
+    type="button"
+    class="copy-markdown-btn"
+    data-markdown={markdownContent}
+  >
+    Copy Markdown
+  </button>
+</div>
+
+<script>
+  function setupCopyButton() {
+    const buttons = document.querySelectorAll('.copy-markdown-btn');
+
+    buttons.forEach((button) => {
+      if (button.dataset.initialized) return;
+      button.dataset.initialized = 'true';
+
+      button.addEventListener('click', async () => {
+        const markdownContent = button.getAttribute('data-markdown');
+        const originalText = button.textContent;
+
+        try {
+          // Try modern Clipboard API first
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(markdownContent);
+          } else {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = markdownContent;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+          }
+
+          // Success feedback
+          button.textContent = 'Copied!';
+          button.classList.add('copied');
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('copied');
+          }, 2000);
+
+        } catch (err) {
+          // Error feedback
+          button.textContent = 'Failed to copy';
+          button.classList.add('error');
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('error');
+          }, 2000);
+        }
+      });
+    });
+  }
+
+  // Run on initial load
+  setupCopyButton();
+
+  // Re-run after view transitions (if using Astro view transitions)
+  document.addEventListener('astro:page-load', setupCopyButton);
+</script>
+
+<style>
+  .copy-markdown-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    align-items: start;
+  }
+
+  @media (min-width: 640px) {
+    .copy-markdown-wrapper {
+      grid-column: 2;
+    }
+  }
+
+  .copy-markdown-btn {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 0;
+  }
+
+  .copy-markdown-btn.copied {
+    background-color: var(--pico-primary);
+  }
+
+  .copy-markdown-btn.error {
+    background-color: var(--pico-del-color);
+  }
+</style>

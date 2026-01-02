@@ -1,5 +1,6 @@
 ---
 import Layout from './Layout.astro';
+import CopyMarkdown from '../components/CopyMarkdown.astro';
 
 export interface Props {
   title: string;
@@ -14,6 +15,29 @@ const formattedDate = new Date(date).toLocaleDateString('en-US', {
   month: 'long',
   day: 'numeric'
 });
+
+// Get all blog posts and find current one
+const posts = await Astro.glob('../pages/blog/*.md');
+const currentUrl = Astro.url.pathname.replace(/\/$/, ''); // Remove trailing slash
+const currentPost = posts.find(post => post.url === currentUrl);
+
+// Assert that we found the current post
+if (!currentPost) {
+  throw new Error(`Blog post not found for URL: ${currentUrl}. Available URLs: ${posts.map(p => p.url).join(', ')}`);
+}
+
+// Extract markdown body (strip frontmatter)
+let markdownBody = '';
+if (currentPost?.rawContent) {
+  const rawContent = currentPost.rawContent();
+  // Remove everything between first --- and second ---
+  markdownBody = rawContent.replace(/^---[\s\S]*?---\n/, '').trim();
+}
+
+// Assert that we extracted markdown content
+if (!markdownBody) {
+  throw new Error(`No markdown content found for blog post: ${currentUrl}`);
+}
 ---
 
 <Layout title={title}>
@@ -24,6 +48,7 @@ const formattedDate = new Date(date).toLocaleDateString('en-US', {
         <time datetime={date}>{formattedDate}</time>
         <span> · {readTime} min read</span>
       </div>
+      {markdownBody && <CopyMarkdown markdownContent={markdownBody} />}
     </header>
     {coverImage && (
       <img src={coverImage} alt={title} class="cover-image" />
@@ -38,9 +63,31 @@ const formattedDate = new Date(date).toLocaleDateString('en-US', {
 </Layout>
 
 <style>
+  article header {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  article header h1 {
+    grid-column: 1 / -1;
+    margin-bottom: 0.5rem;
+  }
+
   .post-meta {
     color: var(--text-light);
     margin-bottom: 2rem;
+  }
+
+  @media (min-width: 640px) {
+    article header {
+      grid-template-columns: 1fr auto;
+    }
+
+    .post-meta {
+      grid-column: 1;
+    }
   }
 
   .cover-image {
