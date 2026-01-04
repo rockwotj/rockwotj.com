@@ -13,6 +13,7 @@ import json
 import random
 import time
 from typing import List, Dict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 from google import genai
 from google.genai import types
@@ -443,6 +444,31 @@ def create_unstructured_version(structured_conversation: Dict) -> Dict:
     return unstructured
 
 
+def generate_single_example(
+    client: genai.Client,
+    model_name: str,
+    is_multi_turn: bool,
+    example_num: int,
+) -> tuple[Dict, Dict, int] | None:
+    """Generate a single conversation example (used for parallel execution)."""
+
+    # Random selection
+    scenario = random.choice(USE_CASE_SCENARIOS)
+    attack_type = random.choice(INJECTION_ATTACK_TYPES)
+
+    # Generate structured conversation
+    conversation = generate_conversation_with_gemini(
+        scenario, attack_type, client, model_name, multi_turn=is_multi_turn
+    )
+
+    if conversation:
+        # Create unstructured version
+        unstructured_conversation = create_unstructured_version(conversation)
+        return (conversation, unstructured_conversation, example_num)
+
+    return None
+
+
 def generate_dataset(
     num_examples: int,
     client: genai.Client,
@@ -450,8 +476,9 @@ def generate_dataset(
     output_structured: str,
     output_unstructured: str,
     multi_turn_ratio: float = 0.2,
+    max_workers: int = 20,
 ) -> tuple[List[Dict], List[Dict]]:
-    """Generate both structured and unstructured datasets."""
+    """Generate both structured and unstructured datasets in parallel."""
 
     structured_dataset = []
     unstructured_dataset = []
@@ -462,58 +489,62 @@ def generate_dataset(
     print(f"\nGenerating {num_examples} conversation examples...")
     print(f"  - Single-turn: {num_single_turn}")
     print(f"  - Multi-turn: {num_multi_turn}")
+    print(f"  - Parallel workers: {max_workers}")
     print(f"Using model: {model_name}")
 
-    attempts = 0
-    max_attempts = num_examples * 3  # Allow for retries
+    # Create tasks for all examples
+    tasks = []
+    for i in range(num_examples):
+        is_multi_turn = i < num_multi_turn
+        tasks.append((is_multi_turn, i))
 
-    while len(structured_dataset) < num_examples and attempts < max_attempts:
-        attempts += 1
+    # Process in parallel with ThreadPoolExecutor
+    completed = 0
+    failed = 0
 
-        # Determine if this should be multi-turn
-        is_multi_turn = len(structured_dataset) < num_multi_turn
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_task = {
+            executor.submit(
+                generate_single_example,
+                client,
+                model_name,
+                is_multi_turn,
+                example_num,
+            ): (is_multi_turn, example_num)
+            for is_multi_turn, example_num in tasks
+        }
 
-        # Random selection
-        scenario = random.choice(USE_CASE_SCENARIOS)
-        attack_type = random.choice(INJECTION_ATTACK_TYPES)
+        # Process completed tasks as they finish
+        for future in as_completed(future_to_task):
+            result = future.result()
 
-        # Generate structured conversation
-        conversation = generate_conversation_with_gemini(
-            scenario, attack_type, client, model_name, multi_turn=is_multi_turn
-        )
+            if result:
+                structured_conv, unstructured_conv, example_num = result
+                structured_dataset.append(structured_conv)
+                unstructured_dataset.append(unstructured_conv)
+                completed += 1
 
-        if conversation:
-            structured_dataset.append(conversation)
+                if completed % 10 == 0:
+                    print(
+                        f"Progress: {completed}/{num_examples} examples generated (failed: {failed})..."
+                    )
 
-            # Create unstructured version
-            unstructured_conversation = create_unstructured_version(conversation)
-            unstructured_dataset.append(unstructured_conversation)
+                    # Save intermediate results
+                    pd.DataFrame(structured_dataset).to_parquet(
+                        output_structured, index=False
+                    )
+                    pd.DataFrame(unstructured_dataset).to_parquet(
+                        output_unstructured, index=False
+                    )
+            else:
+                failed += 1
+                if failed % 10 == 0:
+                    print(f"Warning: {failed} examples have failed so far...")
 
-            if len(structured_dataset) % 10 == 0:
-                print(
-                    f"Progress: {len(structured_dataset)}/{num_examples} examples generated..."
-                )
-
-                # Save intermediate results
-                pd.DataFrame(structured_dataset).to_parquet(
-                    output_structured, index=False
-                )
-                pd.DataFrame(unstructured_dataset).to_parquet(
-                    output_unstructured, index=False
-                )
-
-            # Rate limiting - adjust based on quota
-            time.sleep(0.5)
-        else:
-            print(
-                f"Failed to generate valid conversation (attempt {attempts}), retrying..."
-            )
-            time.sleep(2)
-
-    if len(structured_dataset) < num_examples:
-        print(
-            f"\nWarning: Only generated {len(structured_dataset)}/{num_examples} examples after {attempts} attempts"
-        )
+    print(f"\n✓ Completed: {completed}/{num_examples} examples")
+    if failed > 0:
+        print(f"✗ Failed: {failed} examples")
 
     # Final save
     pd.DataFrame(structured_dataset).to_parquet(output_structured, index=False)
