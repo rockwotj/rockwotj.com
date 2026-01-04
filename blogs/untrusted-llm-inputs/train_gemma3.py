@@ -32,35 +32,35 @@ LOAD_IN_4BIT = True  # Use 4bit quantization to reduce memory usage
 # Model configuration
 MODEL_NAME = "unsloth/gemma-3-1b-pt"  # Gemma 3 1B pretrained/base model
 
-# Chat templates
-CHATML_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<|im_start|>user
-{{ message['value'] }}<|im_end|>
-{% elif message['from'] == 'gpt' %}<|im_start|>assistant
-{{ message['value'] }}<|im_end|>
-{% endif %}{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant
+# Chat templates using Gemma's native format
+GEMMA_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<start_of_turn>user
+{{ message['value'] }}<end_of_turn>
+{% elif message['from'] == 'gpt' %}<start_of_turn>model
+{{ message['value'] }}<end_of_turn>
+{% endif %}{% endfor %}{% if add_generation_prompt %}<start_of_turn>model
 {% endif %}"""
 
 # Custom template with context tokens for structured data
-STRUCTURED_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<|im_start|>user
-{{ message['value'] }}<|im_end|>
+STRUCTURED_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<start_of_turn>user
+{{ message['value'] }}<end_of_turn>
 {% elif message['from'] == 'context' %}<start_of_context>{{ message['value'] }}<end_of_context>
-{% elif message['from'] == 'gpt' %}<|im_start|>assistant
-{{ message['value'] }}<|im_end|>
-{% endif %}{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant
+{% elif message['from'] == 'gpt' %}<start_of_turn>model
+{{ message['value'] }}<end_of_turn>
+{% endif %}{% endfor %}{% if add_generation_prompt %}<start_of_turn>model
 {% endif %}"""
 
 # Model configurations
 MODEL_CONFIGS = {
     "philschmid": {
         "dataset": "philschmid-guanaco-sharegpt-style.parquet",
-        "template": "chatml",
+        "template": "gemma",
         "output_dir": "./models/gemma3-1b-baseline",
         "description": "Baseline model trained on general chat data",
         "max_steps": 1000,
     },
     "unstructured": {
         "dataset": "train_unstructured.parquet",
-        "template": "chatml",
+        "template": "gemma",
         "output_dir": "./models/gemma3-1b-unstructured",
         "description": "Model trained on prompt injections (unstructured)",
         "max_steps": 500,
@@ -106,12 +106,12 @@ def apply_chat_template(example, tokenizer, needs_context_tokens: bool):
             chat_template=STRUCTURED_TEMPLATE,
         )
     else:
-        # Use standard ChatML template
+        # Use Gemma's native template
         formatted = tokenizer.apply_chat_template(
             example["messages"],
             tokenize=False,
             add_generation_prompt=False,
-            chat_template=CHATML_TEMPLATE,
+            chat_template=GEMMA_TEMPLATE,
         )
 
     return {"text": formatted}
@@ -142,8 +142,8 @@ def train_model(config_name: str):
 
     special_tokens = {
         "additional_special_tokens": [
-            "<|im_start|>",
-            "<|im_end|>",
+            "<start_of_turn>",
+            "<end_of_turn>",
         ]
     }
 
@@ -153,6 +153,8 @@ def train_model(config_name: str):
             ["<start_of_context>", "<end_of_context>"]
         )
         print("  Added context tokens: <start_of_context>, <end_of_context>")
+
+    print("  Using Gemma's native tokens: <start_of_turn>, <end_of_turn>")
 
     tokenizer.add_special_tokens(special_tokens)
     model.resize_token_embeddings(len(tokenizer))

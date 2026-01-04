@@ -18,51 +18,79 @@ import torch
 
 # Model paths
 MODEL_PATHS = {
-    "baseline": "./models/gemma3-1b-baseline-merged",
-    "unstructured": "./models/gemma3-1b-unstructured-merged",
-    "structured": "./models/gemma3-1b-structured-merged",
+    "baseline": "./models/gemma3-1b-baseline-lora",
+    "unstructured": "./models/gemma3-1b-unstructured-lora",
+    "structured": "./models/gemma3-1b-structured-lora",
 }
 
-# Chat templates
-CHATML_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<|im_start|>user
-{{ message['value'] }}<|im_end|>
-{% elif message['from'] == 'gpt' %}<|im_start|>assistant
-{{ message['value'] }}<|im_end|>
-{% endif %}{% endfor %}<|im_start|>assistant
+BASE_MODEL = "unsloth/gemma-3-1b-pt"
+
+# Chat templates using Gemma's native format
+GEMMA_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<start_of_turn>user
+{{ message['value'] }}<end_of_turn>
+{% elif message['from'] == 'gpt' %}<start_of_turn>model
+{{ message['value'] }}<end_of_turn>
+{% endif %}{% endfor %}<start_of_turn>model
 """
 
-STRUCTURED_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<|im_start|>user
-{{ message['value'] }}<|im_end|>
+STRUCTURED_TEMPLATE = """{% for message in messages %}{% if message['from'] == 'human' %}<start_of_turn>user
+{{ message['value'] }}<end_of_turn>
 {% elif message['from'] == 'context' %}<start_of_context>{{ message['value'] }}<end_of_context>
-{% elif message['from'] == 'gpt' %}<|im_start|>assistant
-{{ message['value'] }}<|im_end|>
-{% endif %}{% endfor %}<|im_start|>assistant
+{% elif message['from'] == 'gpt' %}<start_of_turn>model
+{{ message['value'] }}<end_of_turn>
+{% endif %}{% endfor %}<start_of_turn>model
 """
 
 # Generation config
 MAX_NEW_TOKENS = 512
-TEMPERATURE = 0.7
+TEMPERATURE = 0.5  # Lower temperature for more focused, less random output
+REPETITION_PENALTY = 1.2  # Penalize repetition
 
 
 def load_model(model_name: str):
     """Load a trained model and tokenizer."""
 
-    model_path = MODEL_PATHS[model_name]
+    lora_path = MODEL_PATHS[model_name]
 
-    if not Path(model_path).exists():
+    if not Path(lora_path).exists():
         raise FileNotFoundError(
-            f"Model not found at {model_path}. Train it first with:\n"
+            f"Model not found at {lora_path}. Train it first with:\n"
             f"  python train_gemma3.py {model_name}"
         )
 
-    print(f"Loading {model_name} model from {model_path}...")
+    print(f"Loading base model and {model_name} LoRA adapters...")
 
+    # Load base model
     model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=model_path,
+        model_name=BASE_MODEL,
         max_seq_length=32768,
         dtype=None,
         load_in_4bit=True,
     )
+
+    # Add special tokens (same as training)
+    needs_context_tokens = model_name == "structured"
+
+    special_tokens = {
+        "additional_special_tokens": [
+            "<start_of_turn>",
+            "<end_of_turn>",
+        ]
+    }
+
+    if needs_context_tokens:
+        special_tokens["additional_special_tokens"].extend(
+            ["<start_of_context>", "<end_of_context>"]
+        )
+
+    tokenizer.add_special_tokens(special_tokens)
+    model.resize_token_embeddings(len(tokenizer))
+
+    # Load LoRA adapters
+    print(f"Loading LoRA adapters from {lora_path}...")
+    from peft import PeftModel
+
+    model = PeftModel.from_pretrained(model, lora_path)
 
     FastLanguageModel.for_inference(model)
 
@@ -72,7 +100,7 @@ def load_model(model_name: str):
 def format_prompt(messages: List[Dict], use_structured: bool, tokenizer) -> str:
     """Format messages into a prompt using the appropriate template."""
 
-    template = STRUCTURED_TEMPLATE if use_structured else CHATML_TEMPLATE
+    template = STRUCTURED_TEMPLATE if use_structured else GEMMA_TEMPLATE
 
     prompt = tokenizer.apply_chat_template(
         messages,
@@ -89,13 +117,19 @@ def generate_response(model, tokenizer, prompt: str) -> str:
 
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
 
+    # Get the EOS token ID - use <end_of_turn> if available, otherwise use standard EOS
+    end_of_turn_token_id = tokenizer.convert_tokens_to_ids("<end_of_turn>")
+    eos_token_ids = [tokenizer.eos_token_id, end_of_turn_token_id]
+
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
             max_new_tokens=MAX_NEW_TOKENS,
             temperature=TEMPERATURE,
+            repetition_penalty=REPETITION_PENALTY,
             do_sample=True,
             pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=eos_token_ids,
         )
 
     # Decode only the new tokens (not the prompt)
