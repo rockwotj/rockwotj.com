@@ -121,7 +121,7 @@ The trickier problem is async host functions. When Wasm calls a host function th
 3. Wait for the I/O to complete on the reactor
 4. Resume the Wasm VM with the result
 
-The natural approach with Wasmtime's C API would be to return `false` from the continuation callback (meaning "I'm not done yet"), let the poll loop spin, and eventually return `true` when the I/O finishes. But this means the poll loop has no idea what it's waiting for — it would have to busy-poll or sleep-poll, which is wasteful and adds latency.
+The natural approach with Wasmtime's C API would be to return `false` from the continuation callback (meaning "I'm not done yet"), let the poll loop spin, and eventually return `true` when the I/O finishes. But this means the poll loop has no idea what it's waiting for - it would have to busy-poll or sleep-poll, which is wasteful and adds latency.
 
 Instead, we use what I think of as a **side-channel future**. The async host function registers its Seastar future directly on the engine, and the poll loop knows exactly what to await:
 
@@ -174,13 +174,14 @@ The key insight is in the poll loop shown earlier. When `wasmtime_call_future_po
 
 None of this would have been possible without async support in Wasmtime's C API, which didn't exist before. The Rust API had async support for a long time, but C/C++ embedders were left out. I opened [PR #7106](https://github.com/bytecodealliance/wasmtime/pull/7106) to add the full async C API, which exposes:
 
-- `wasmtime_config_async_support_set` / `wasmtime_config_async_stack_size_set` — configure async mode
-- `wasmtime_linker_define_async_func` — register async host functions
-- `wasmtime_func_call_async` — invoke Wasm and get back a pollable future
-- `wasmtime_call_future_poll` / `wasmtime_call_future_delete` — drive the future to completion
-- `wasmtime_context_epoch_deadline_async_yield_and_update` — epoch-based cooperative yielding
 
-The core of the Rust implementation bridges C callbacks to Rust futures. The `wasmtime_async_continuation_t` struct implements Rust's `Future` trait — `poll()` calls the C callback and maps the boolean return to `Poll::Ready` / `Poll::Pending`. This means Wasmtime's internal fiber machinery works unchanged; we just swap out the Rust async closure for a C callback wrapper. If you're interested in the design discussions, the [original issue #3111](https://github.com/bytecodealliance/wasmtime/issues/3111) has context going back to 2021.
+- `wasmtime_config_async_support_set` / `wasmtime_config_async_stack_size_set` - configure async mode
+- `wasmtime_linker_define_async_func` - register async host functions
+- `wasmtime_func_call_async` - invoke Wasm and get back a pollable future
+- `wasmtime_call_future_poll` / `wasmtime_call_future_delete` - drive the future to completion
+- `wasmtime_context_epoch_deadline_async_yield_and_update` - epoch-based cooperative yielding
+
+The core of the Rust implementation bridges C callbacks to Rust futures. The `wasmtime_async_continuation_t` struct implements Rust's `Future` trait - `poll()` calls the C callback and maps the boolean return to `Poll::Ready` / `Poll::Pending`. This means Wasmtime's internal fiber machinery works unchanged; we just swap out the Rust async closure for a C callback wrapper. If you're interested in the design discussions, the [original issue #3111](https://github.com/bytecodealliance/wasmtime/issues/3111) has context going back to 2021.
 
 ### Results
 
@@ -192,7 +193,7 @@ wasmtime_config_async_stack_size_set(config, 128_KiB);
 wasmtime_config_max_wasm_stack_set(config, 64_KiB);
 ```
 
-128 KiB for the fiber stack, 64 KiB for Wasm, leaving 64 KiB for host functions — small stacks that fit in cache and allow many concurrent Wasm guests per core. See my [previous blog](https://rockwotj.com/blog/protecting-against-stack-overflow-in-wasmtime-host-functions/) for more information on the stack sizes.
+128 KiB for the fiber stack, 64 KiB for Wasm, leaving 64 KiB for host functions - small stacks that fit in cache and allow many concurrent Wasm guests per core. See my [previous blog](https://rockwotj.com/blog/protecting-against-stack-overflow-in-wasmtime-host-functions/) for more information on the stack sizes.
 
 The measured improvement was **3x throughput** in Data Transforms benchmarks. The wins came from eliminating cross-thread synchronization, better cache locality (everything runs on one core), and the ability to interleave Wasm execution with other reactor work via cooperative yielding.
 
@@ -205,6 +206,6 @@ If you're embedding Wasmtime into a non-Rust application with its own event loop
 3. Register async host functions that communicate pending I/O through a side channel
 4. Exploit the fast path for synchronously-completing operations
 
-The side-channel pattern in particular is useful beyond Wasmtime — any time you need to bridge a poll-based API (like fibers or coroutines) with a push-based runtime (like Seastar), having the caller register its pending work where the driver can see it avoids the overhead of blind polling.
+The side-channel pattern in particular is useful beyond Wasmtime - any time you need to bridge a poll-based API (like fibers or coroutines) with a push-based runtime (like Seastar), having the caller register its pending work where the driver can see it avoids the overhead of blind polling.
 
-Thanks for reading! If this sort of low-level systems work is interesting to you, all the code referenced in this post is open source — go explore the [Wasmtime C API](https://github.com/bytecodealliance/wasmtime/blob/main/crates/c-api/include/wasmtime/async.h) and see how it all fits together.
+Thanks for reading! If this sort of low-level systems work is interesting to you, all the code referenced in this post is open source - go explore the [Wasmtime C API](https://github.com/bytecodealliance/wasmtime/blob/main/crates/c-api/include/wasmtime/async.h) and see how it all fits together.
