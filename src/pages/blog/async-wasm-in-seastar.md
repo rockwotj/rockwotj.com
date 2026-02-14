@@ -151,13 +151,13 @@ void invoke_async_host_fn(
     // Slow path: I/O is pending.
     // Allocate a flag the continuation can check.
     auto* done = new async_call_state();
-    host_future.then([done, results](ReturnType val) {
+    auto pending_fut = std::move(host_future).then([done, results](ReturnType val) {
         results[0] = to_wasm_val(val);
         done->finished = true;
     });
 
     // Register this future with the engine so the poll loop can await it.
-    engine->_pending_host_function = std::move(host_future);
+    engine->_pending_host_function = std::move(pending_fut);
 
     // The continuation just checks the flag.
     continuation->env = done;
