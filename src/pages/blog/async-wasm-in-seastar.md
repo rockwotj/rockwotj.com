@@ -3,6 +3,7 @@ layout: ../../layouts/BlogPost.astro
 title: "Running Async WebAssembly on Seastar's Reactor"
 date: "2026-02-14"
 readTime: 7
+coverImage: "/blog/images/seastar.jpg"
 ---
 
 In late 2023, I landed a series of patches to [Wasmtime](https://wasmtime.dev) and [Redpanda](https://redpanda.com) that moved WebAssembly (Wasm) execution off of dedicated threads and onto [Seastar's](https://seastar.io) reactor threads. The result was a 3x throughput improvement for Redpanda's [Data Transforms](https://docs.redpanda.com/current/develop/data-transforms/). This post is a deep dive into how we bridged the gap between Rust's async model, Wasmtime's fiber-based concurrency, and Seastar's cooperative reactor — and the trick we used to support async host functions without extra polling overhead.
