@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Split training datasets into training and evaluation sets.
-Creates a small eval set with 10 samples: 1 without context blocks, 9 with context blocks.
+Creates an eval set with 50 samples: 5 without context blocks, 45 with context blocks.
 """
 
 import pandas as pd
@@ -42,10 +42,10 @@ def main():
     print(f"  Samples with context: {len(with_context)}")
     print(f"  Samples without context: {len(without_context)}")
 
-    # Select evaluation samples: 1 without context, 9 with context
+    # Select evaluation samples: 5 without context, 45 with context
     print("\nSelecting evaluation samples...")
-    eval_without = without_context.head(1)
-    eval_with = with_context.head(9)
+    eval_without = without_context.head(5)
+    eval_with = with_context.head(45)
 
     # Combine evaluation samples
     struct_eval = pd.concat([eval_without, eval_with], ignore_index=True)
@@ -62,6 +62,20 @@ def main():
     print(f"  Selected {len(eval_with)} with context")
     print(f"  Total eval samples: {len(struct_eval)}")
     print(f"  Remaining training samples: {len(struct_train)}")
+
+    # Upsample injection examples 4x in structured training set
+    # so context-token examples go from ~5% to ~20% of the mix
+    struct_train_has_context = struct_train[
+        struct_train['conversations'].apply(has_context_message)
+    ]
+    n_before = len(struct_train)
+    struct_train = pd.concat(
+        [struct_train] + [struct_train_has_context] * 3,
+        ignore_index=True,
+    )
+    struct_train = struct_train.sample(frac=1, random_state=42).reset_index(drop=True)
+    print(f"\n  Upsampled structured training set: {n_before} -> {len(struct_train)}")
+    print(f"  ({len(struct_train_has_context)} injection examples repeated 4x total)")
 
     # Save structured datasets
     struct_train.to_parquet("train_structured.parquet", index=False)
@@ -87,9 +101,9 @@ def main():
     print(" " * 30 + "SUMMARY")
     print("=" * 70)
     print("\nEvaluation Set Composition:")
-    print(f"  • 1 sample without 'context' messages")
-    print(f"  • 9 samples with 'context' messages")
-    print(f"  • Total: 10 evaluation samples")
+    print(f"  • 5 samples without 'context' messages")
+    print(f"  • 45 samples with 'context' messages")
+    print(f"  • Total: 50 evaluation samples")
     print("\nFiles Created:")
     print(f"  Structured:")
     print(f"    • train_structured.parquet ({len(struct_train)} examples)")
@@ -97,7 +111,7 @@ def main():
     print(f"\n  Unstructured:")
     print(f"    • train_unstructured.parquet ({len(unstruct_train)} examples)")
     print(f"    • eval_unstructured.parquet ({len(unstruct_eval)} examples)")
-    print("\nNote: Both eval sets contain the same 10 conversations")
+    print("\nNote: Both eval sets contain the same 50 conversations")
     print("=" * 70)
 
 
