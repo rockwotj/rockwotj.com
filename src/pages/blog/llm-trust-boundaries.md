@@ -1,10 +1,9 @@
 ---
 layout: ../../layouts/BlogPost.astro
 title: "What if LLMs Could See Trust Boundaries?"
-date: "2026-02-18"
+date: "2026-02-20"
 readTime: 12
 coverImage: "/blog/images/llm-chat-cover.jpg"
-unlisted: true
 ---
 
 [Prompt injection][trail-of-bits-prompt-injection] is one of the biggest unsolved problems in LLM security.
