@@ -4,7 +4,7 @@ import Layout from '../../layouts/Layout.astro';
 const posts = await Astro.glob('./*.md');
 
 const sortedPosts = posts
-  .filter(post => post.frontmatter.title && !post.frontmatter.draft)
+  .filter(post => post.frontmatter.title && !(post.frontmatter.draft || post.frontmatter.unlisted))
   .sort((a, b) => {
     const dateA = new Date(a.frontmatter.date);
     const dateB = new Date(b.frontmatter.date);

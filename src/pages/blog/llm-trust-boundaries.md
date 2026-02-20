@@ -4,23 +4,21 @@ title: "What if LLMs Could See Trust Boundaries?"
 date: "2026-02-18"
 readTime: 12
 coverImage: "/blog/images/llm-chat-cover.jpg"
-draft: true
+unlisted: true
 ---
 
-# Making AI Agents Safer against Prompt Injection
-
 [Prompt injection][trail-of-bits-prompt-injection] is one of the biggest unsolved problems in LLM security.
-As AI agents gain access to more tools — reading emails, browsing the web, executing code — the
-consequences of a successful injection go from embarrassing to dangerous. This isn't theoretical:
+As AI agents gain access to more tools - reading emails, browsing the web, executing code - the
+consequences of a successful injection go from embarrassing to dangerous.
 [OpenAI's own Atlas agent][openai-atlas-prompt-injection-attack] was vulnerable to prompt injection
-attacks embedded in web pages it browsed.
+attacks embedded in web pages it browsed (the main reason I've not adopted an agentic browser).
 
 The core issue is that LLMs have no reliable way to distinguish between instructions they should
 follow and external content they should merely reference. Everything gets flattened into the same
-stream of tokens. What if we could fix that?
+stream of tokens.
 
 This post explores a simple idea: **add special tokens to mark untrusted content, and train the
-model to respect that boundary**. I'll walk through the theory, then run an actual experiment
+model to respect that boundary**. I'll walk through the hypothesis, then run an actual experiment
 fine-tuning Gemma 3 to test whether it works. Following the principle of [defense in depth][DiD],
 there is little reason we *wouldn't* want this in our LLM APIs, even if it's not a silver bullet.
 
@@ -30,7 +28,7 @@ Before we dive into this subject, it's useful to understand how these LLMs work 
 (I'm assuming you understand how to use one of these models from a public API).
 If you remember back to the good ol' days of GPT-3, we didn't have this chat API to interact with
 these language models, the primary endpoint was [text completion][openai-chat-endpoint-announcement].
-Now the underlying models didn't change, but the chat API was to introduce structure that the models
+Now the underlying models didn't change much, but the chat API was to introduce structure that the models
 could be fine tuned for. Under the hood, text completion was still being used. To help illustrate the
 point, we'll work through an example of how the Chat API works.
 
@@ -170,7 +168,7 @@ into the same block of user message.
 
 <mark>What if we could separate user content from external content to the model in a way that was baked into the model's training</mark>
 (instead of relying on some structured input or very careful instructions to the LLM).
-As a corollary into the real world, we often have real and obvious ways of distinguishing between trusted and untrusted content.
+We already do this everywhere else. Browsers show padlock icons, email clients flag phishing, OSes warn about unsigned binaries.
 
 ![Gmail Phishing Warning](/blog/images/gmail-phishing.png)
 
@@ -270,7 +268,7 @@ Write a professional recruiter outreach email referencing his experience.
 <start-of-turn>model
 ```
 
-In theory (depending on the training data of course!) that should allow the LLM to
+In theory (depending on the training data of course!) that could allow the LLM to
 more easily understand and prevent that attack, as the developer using the LLM APIs
 now has the ability to communicate to the LLM what text is informational vs authoritative.
 
@@ -280,17 +278,15 @@ This idea isn't entirely new. OpenAI published a paper on [instruction hierarchy
 that explores training models to prioritize different levels of instructions. Anthropic's system prompts
 and Google's Gemini both use separate roles to distinguish developer instructions from user input.
 
-But what I'm proposing goes a step further: rather than just separating *system* from *user*, we should
-give developers the ability to mark **arbitrary content within a message as untrusted** — and bake that
-distinction into the model's vocabulary as special tokens. This is a more granular primitive that maps
-directly to how real applications work: a user message often contains both the user's actual request
-*and* external content (scraped web pages, database results, uploaded documents) that should be treated
-as data, not instructions.
+But what I'm proposing goes a step further: let developers mark **arbitrary content within a message
+as untrusted**, and bake that into the model's vocabulary as special tokens. In practice, a single
+user message often mixes the user's actual request with external content (scraped web pages, database
+results, uploaded documents) that should be treated as data, not instructions. The API should let
+you express this.
 
 ## Experiments
 
-Theory doesn't always work out in practice, so let's do some initial experimentation to prove
-out this concept.
+Theory doesn't always work out in practice, so let's do some initial experimentation to prove out this concept.
 
 To make our ~flan recipe~<ins>finely tuned LLM</ins> we need three ingredients:
 
@@ -347,18 +343,16 @@ and the overall **response quality** (1–5 scale).
 <small>Results shown for the 45 examples that contain injection attempts.</small>
 
 The structured model shows improvement on both dimensions: it follows injections less often (46.7%
-vs 53.3% for unstructured and 60.0% for baseline) and produces meaningfully better responses
-(3.09 vs 2.16 and 1.84). The gap between unstructured and structured is the most interesting
-comparison — both saw the same injection examples during training, but the structured model had
-the benefit of context tokens to distinguish untrusted content.
+vs 53.3% for unstructured and 60.0% for baseline) and produces better responses (3.09 vs 2.16 and 1.84).
+The gap between unstructured and structured is interesting - both saw the same injection examples during
+training, but the structured model had the benefit of context tokens to distinguish untrusted content.
 
-The trend is clear: **more structure leads to both better injection resistance and better response
-quality**, and I'd expect the gap to widen further with larger models.
+**More structure leads to both better injection resistance and better response quality**.
 
-**Caveats:** This is a small-scale experiment — 50 eval examples, 500 synthetic training examples
-generated by a single model (Gemini), and an LLM judge that has its own biases. The absolute numbers
-shouldn't be taken too seriously. What matters is the relative comparison between unstructured and
-structured, since they differ only in whether context tokens are used.
+**Caveats:** This is a small-scale experiment: 50 eval examples, 500 synthetic training examples
+generated by a single model, and training on a tiny 1 billion parameter model. What matters is the
+relative comparison between unstructured and structured, since they differ only in whether context
+tokens are used. It would be interesting to see if this held up with bigger, smarter models.
 
 ### Cherry-picked examples
 
@@ -412,16 +406,15 @@ the model treats the context as data to reference rather than instructions to fo
 ## Summary
 
 The results from this experiment are encouraging. The structured model reduced the injection rate
-from 60% (baseline) to 47%, while also producing substantially better responses (3.09 vs 1.84
-quality score). The most telling comparison is unstructured vs structured — both trained on the
-same injection examples, but the structured model's context tokens gave it a meaningful edge on
-both injection resistance and response quality.
+from 60% (baseline) to 47%, while also producing better responses (3.09 vs 1.84 quality score).
+The most interesting comparison is unstructured vs structured - both trained on the same injection
+examples, but the structured model's context tokens gave it an edge on both injection resistance
+and response quality.
 
 I'd expect these results to only get stronger with larger models that have more capacity
-to learn the distinction between instruction-following and data-referencing. The key insight
-remains: **giving models structural signals about trust boundaries at training time is strictly
-better than hoping they figure it out from text alone**.
-
+to learn the distinction between instruction-following and data-referencing. My hypothesis
+looks good after this small scale experiment! Giving models structural signals about trust
+boundaries is strictly better than hoping they figure it out from text alone.
 
 [sharegpt]: https://huggingface.co/datasets/philschmid/guanaco-sharegpt-style
 [linkedin-recruiter-attack]: https://x.com/cameronmattis/status/1970468825129717993
