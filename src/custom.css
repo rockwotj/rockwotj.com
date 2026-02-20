@@ -120,6 +120,12 @@ body > footer {
   margin: 0.5rem;
 }
 
+/* Make wide tables scrollable on mobile */
+table {
+  display: block;
+  overflow-x: auto;
+}
+
 /* Slightly reduce image/video opacity in dark mode */
 @media (prefers-color-scheme: dark) {
   img,
