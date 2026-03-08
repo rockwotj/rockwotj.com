@@ -30,7 +30,12 @@ import Layout from '../layouts/Layout.astro';
         Unblocked <a href="https://www.redpanda.com/blog/redpanda-25-1-iceberg-topics-ga" rel="noopener noreferrer">Iceberg Topics</a> by designing the schema management system and building a Seastar native Parquet writer.
       </li>
       <li>
-        Accelerated and aided the team in building and launching <a href="https://www.redpanda.com/blog/cloud-topics-streaming-data-object-storage" rel="noopener noreferrer">Cloud Topics</a> by inventing a production-grade general-purpose LSM tree for metadata management (patented).
+        Accelerated and aided the team in building and launching <a href="https://www.redpanda.com/blog/cloud-topics-streaming-data-object-storage" rel="noopener noreferrer">Cloud Topics</a>.
+        <ul>
+          <li>Built an LSM tree based KV store for metadata management that integrated with our raft consensus and object storage (patent filed).</li>
+          <li>Created a key performance optimization that increased ingress throughput 10x.</li>
+          <li>Pushed for data driven performance optimizations and simplified benchmarking setup for Cloud Topics.</li>
+        </ul>
       </li>
       <li>
         Built a number of strategic connectors for Redpanda Connect.
