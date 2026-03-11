@@ -1,0 +1,223 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Systems Cheatsheet">
+  <div slot="header">
+    <h2>Numbers Every Systems Programmer Should Know</h2>
+    <p>A quick-reference for estimating system bottlenecks — latency, bandwidth, IOPS, PPS, and cloud VM limits.</p>
+  </div>
+
+  <h3>Latency Hierarchy</h3>
+  <p>Order-of-magnitude mental model for modern hardware (DDR5, NVMe Gen4/5, Zen 4 / Sapphire Rapids era):</p>
+  <table>
+    <thead>
+      <tr><th>Operation</th><th>Latency</th><th>Scale</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>L1 cache hit</td><td>~1 ns</td><td>1×</td></tr>
+      <tr><td>L2 cache hit</td><td>~3–4 ns</td><td>3×</td></tr>
+      <tr><td>L3 cache hit</td><td>~10–12 ns</td><td>10×</td></tr>
+      <tr><td>DRAM access (local)</td><td>~50–80 ns</td><td>100×</td></tr>
+      <tr><td>NUMA remote DRAM</td><td>~120–150 ns</td><td>150×</td></tr>
+      <tr><td>NVMe SSD read (QD1)</td><td>~5–10 µs</td><td>10,000×</td></tr>
+      <tr><td>Network — same AZ</td><td>~0.1–0.5 ms</td><td>500,000×</td></tr>
+      <tr><td>Network — cross AZ</td><td>~0.5–1 ms</td><td>1,000,000×</td></tr>
+      <tr><td>HDD seek</td><td>~2–10 ms</td><td>10,000,000×</td></tr>
+      <tr><td>Network — cross region</td><td>~10–60 ms</td><td>50,000,000×</td></tr>
+      <tr><td>Network — intercontinental</td><td>~80–200 ms</td><td>100,000,000×</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cloud VM Limits</h3>
+  <p>Normalized "typical" values across AWS, GCP, and Azure.</p>
+
+  <table>
+    <thead>
+      <tr><th>Resource</th><th>Typical Value</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>VM network bandwidth</td><td>10 Gbps (~1.25 GB/s)</td><td>Standard for general-purpose VMs; scales with vCPUs</td></tr>
+      <tr><td>Max VM network bandwidth</td><td>100 Gbps (~12.5 GB/s)</td><td>Network-optimized instances (c5n, c3-highnet, etc.)</td></tr>
+      <tr><td>Single-flow bandwidth cap</td><td>5–10 Gbps (~0.6–1.25 GB/s)</td><td>AWS 5 Gbps default, 10 Gbps in placement groups</td></tr>
+      <tr><td>Block storage IOPS (standard SSD)</td><td>3K–16K</td><td>gp3 / pd-ssd / Premium SSD; scales with volume size</td></tr>
+      <tr><td>Block storage IOPS (high perf)</td><td>200K–400K</td><td>io2 Block Express / Hyperdisk Extreme / Ultra Disk</td></tr>
+      <tr><td>Block storage throughput (standard)</td><td>1 GB/s</td><td>Per-volume cap for standard SSD tiers</td></tr>
+      <tr><td>Block storage throughput (high perf)</td><td>4–10 GB/s</td><td>Per-volume cap for premium tiers</td></tr>
+      <tr><td>Local NVMe IOPS (4K)</td><td>~500K–1M</td><td>Instance store / local SSD; not replicated</td></tr>
+      <tr><td>Local NVMe throughput</td><td>~2–7 GB/s</td><td>Depends on instance size and disk count</td></tr>
+      <tr><td>Connections tracked per VM</td><td>~500K–2M</td><td>Stateful firewall / security group tracking</td></tr>
+      <tr><td>PPS per vCPU</td><td>~100K–200K</td><td>Provider-enforced quota; CPU can handle more (see below)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Bandwidth &amp; Throughput</h3>
+
+  <h4>Storage Throughput (datacenter NVMe)</h4>
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>Typical Value</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Sequential read</td><td>~7 GB/s</td><td>PCIe Gen4 ×4; ~14 GB/s for Gen5</td></tr>
+      <tr><td>Sequential write</td><td>~3–4 GB/s</td><td>Write-limited by endurance tuning</td></tr>
+      <tr><td>Random read IOPS (4K)</td><td>~1.5M</td><td>QD128+; scales to ~2–3M on Gen5</td></tr>
+      <tr><td>Random write IOPS (4K)</td><td>~200–500K</td><td>Read-optimized drives; steady state</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Memory Bandwidth (DDR5-4800, per socket)</h4>
+  <table>
+    <thead>
+      <tr><th>Platform</th><th>Bandwidth</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>8-channel (Xeon Sapphire Rapids)</td><td>~307 GB/s</td><td>8 × 38.4 GB/s</td></tr>
+      <tr><td>12-channel (EPYC Genoa)</td><td>~460 GB/s</td><td>12 × 38.4 GB/s</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Detailed Latency Numbers</h3>
+
+  <h4>Network Round-Trip Time</h4>
+  <table>
+    <thead>
+      <tr><th>Path</th><th>Typical RTT</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Loopback (localhost)</td><td>~10–30 µs</td><td>Kernel stack only</td></tr>
+      <tr><td>Same host (veth/bridge)</td><td>~20–60 µs</td><td>Container-to-container</td></tr>
+      <tr><td>Same AZ (AWS/GCP)</td><td>~0.1–0.5 ms</td><td>Within a datacenter</td></tr>
+      <tr><td>Cross AZ (same region)</td><td>~0.5–1 ms</td><td>Typically &lt;2 ms</td></tr>
+      <tr><td>Cross region (same continent)</td><td>~10–60 ms</td><td>us-east-1 ↔ us-west-2 ~60 ms</td></tr>
+      <tr><td>Intercontinental</td><td>~80–200 ms</td><td>US ↔ Europe ~80 ms; US ↔ Asia ~150–200 ms</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Memory</h4>
+  <table>
+    <thead>
+      <tr><th>Operation</th><th>Typical Latency</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Local DRAM (DDR5-4800)</td><td>~60–80 ns</td><td>CAS latency 36–40</td></tr>
+      <tr><td>Remote NUMA DRAM</td><td>~120–150 ns</td><td>2-socket; 1 hop via UPI/xGMI</td></tr>
+      <tr><td>TLB miss + page walk</td><td>~20–50 ns</td><td>4-level page table; 2MB hugepages help</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Storage Latency</h4>
+  <table>
+    <thead>
+      <tr><th>Device</th><th>Random Read (4K, QD1)</th><th>Random Read (4K, QD32)</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>NVMe Gen5 (datacenter)</td><td>~5–8 µs</td><td>~12–18 µs</td><td>e.g. Kioxia CM7, Samsung PM1743</td></tr>
+      <tr><td>HDD (7200 RPM)</td><td>~2–10 ms</td><td>—</td><td>Seek + rotational latency</td></tr>
+    </tbody>
+  </table>
+
+  <h4>CPU Cache &amp; Core Operations</h4>
+  <table>
+    <thead>
+      <tr><th>Operation</th><th>Typical Latency</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>L1 cache reference</td><td>~1 ns</td><td>4–5 cycles</td></tr>
+      <tr><td>L2 cache reference</td><td>~3–4 ns</td><td>12–15 cycles</td></tr>
+      <tr><td>L3 cache reference</td><td>~10–12 ns</td><td>~40 cycles; varies with slice count</td></tr>
+      <tr><td>Branch mispredict</td><td>~12–15 ns</td><td>~15–20 cycles pipeline flush</td></tr>
+      <tr><td>Mutex lock/unlock (uncontended)</td><td>~15–25 ns</td><td>CAS on x86-64</td></tr>
+      <tr><td>Atomic CAS (same cache line)</td><td>~5–10 ns</td><td>Hot in L1</td></tr>
+      <tr><td>Atomic CAS (cross-core)</td><td>~30–50 ns</td><td>Cache-line bounce via ring bus / mesh</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Syscalls &amp; Context Switches</h4>
+  <table>
+    <thead>
+      <tr><th>Operation</th><th>Typical Latency</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Syscall (getpid, vDSO clock)</td><td>~50–100 ns</td><td>vDSO avoids kernel entry</td></tr>
+      <tr><td>Syscall (read/write fast path)</td><td>~200–500 ns</td><td>Post Spectre/Meltdown mitigations</td></tr>
+      <tr><td>Context switch (same core)</td><td>~1–3 µs</td><td>Warm TLB</td></tr>
+      <tr><td>Context switch (cross core)</td><td>~3–8 µs</td><td>Cold TLB + IPI</td></tr>
+      <tr><td>io_uring submission (batched)</td><td>~100–300 ns</td><td>Amortized; avoids per-op syscall</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Rules of Thumb</h3>
+
+  <h4>Connection Limits</h4>
+  <table>
+    <thead>
+      <tr><th>Resource</th><th>Default / Typical</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Ephemeral port range</td><td>32768–60999 (~28K ports)</td><td><code>net.ipv4.ip_local_port_range</code>; per destination IP</td></tr>
+      <tr><td>File descriptors (soft)</td><td>1,024</td><td><code>ulimit -n</code>; raise for servers</td></tr>
+      <tr><td>File descriptors (hard)</td><td>1,048,576</td><td><code>/etc/security/limits.conf</code></td></tr>
+      <tr><td>Conntrack table</td><td>262,144</td><td><code>net.netfilter.nf_conntrack_max</code></td></tr>
+      <tr><td>Max socket backlog</td><td>4,096</td><td><code>net.core.somaxconn</code>; set ≥ expected burst</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Per-Core Packet Processing</h4>
+  <p>For PPS-bound workloads (DNS, ACKs, control plane), CPU is almost always the bottleneck — not the NIC. A 10 GbE link can push ~14.9 Mpps at wire rate with minimum-size frames, but a single core on the kernel stack handles only ~1–3 Mpps. In cloud VMs, provider PPS quotas (~100K–200K/vCPU) are usually the tighter constraint before you reach these CPU limits.</p>
+  <table>
+    <thead>
+      <tr><th>Path</th><th>Packets/sec/core</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Linux kernel stack (iptables)</td><td>~1–3 Mpps</td><td>With conntrack; varies by rule count</td></tr>
+      <tr><td>XDP (eBPF)</td><td>~10–24 Mpps</td><td>Driver-level; no skb allocation</td></tr>
+      <tr><td>DPDK (user-space)</td><td>~20–40+ Mpps</td><td>Depends on packet size &amp; processing</td></tr>
+    </tbody>
+  </table>
+
+  <h4>PPS Calculations</h4>
+  <p>Ethernet frame overhead on the wire: 20B preamble/IFG + 14B Ethernet header + 4B FCS = <strong>38 bytes</strong> per frame (plus IP/TCP headers in payload).</p>
+  <table>
+    <thead>
+      <tr><th>Formula</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Max PPS = Link bps ÷ ((Frame + 20) × 8)</td>
+        <td>10 Gbps ÷ ((64 + 20) × 8) = 14.88 Mpps</td>
+      </tr>
+      <tr>
+        <td>Useful throughput = PPS × payload bytes × 8</td>
+        <td>14.88M × 46B × 8 = 5.47 Gbps (min-size frames)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4>TCP Bandwidth-Delay Product</h4>
+  <table>
+    <thead>
+      <tr><th>Formula</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>BDP = Bandwidth × RTT</td>
+        <td>10 Gbps × 1 ms = 1.25 MB window needed</td>
+      </tr>
+      <tr>
+        <td>Required window = BDP ÷ MSS × MSS</td>
+        <td>Cross-region (60 ms, 10 Gbps): BDP = 75 MB</td>
+      </tr>
+    </tbody>
+  </table>
+  <p><code>sysctl net.ipv4.tcp_wmem</code> / <code>tcp_rmem</code> max must be ≥ BDP for full throughput.</p>
+
+  <h3>Sources</h3>
+  <ul>
+    <li><a href="https://colin-scott.github.io/personal_website/research/interactive_latency.html">Interactive Latency Numbers</a> — Colin Scott's visualization (inspired by Jeff Dean's original list)</li>
+    <li><a href="https://sre.google/sre-book/table-of-contents/">Google SRE Book</a> — systems design principles and production guidelines</li>
+    <li><a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html">AWS EC2 Network Bandwidth</a></li>
+    <li><a href="https://cloud.google.com/compute/docs/network-bandwidth">GCP VM Network Bandwidth</a></li>
+    <li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/virtual-machine-network-throughput">Azure VM Network Throughput</a></li>
+    <li><a href="https://www.brendangregg.com/systems-performance-2nd-edition-book.html">Systems Performance, 2nd Ed.</a> — Brendan Gregg</li>
+  </ul>
+</Layout>
