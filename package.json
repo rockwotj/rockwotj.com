@@ -4,18 +4,25 @@
   "version": "0.0.1",
   "packageManager": "pnpm@10.26.2",
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro build",
-    "deploy": "astro build && firebase deploy --only=hosting",
+    "dev": "pnpm build:slides && concurrently -n astro,slides \"astro dev --host\" \"pnpm dev:slides\"",
+    "start": "pnpm dev",
+    "build": "pnpm build:slides && astro build",
+    "deploy": "pnpm build:slides && astro build && firebase deploy --only=hosting",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "build:slide": "slidev build slides/$SLIDE/slides.md --base /slides/$SLIDE/ --out ../../public/slides/$SLIDE",
+    "build:slides": "for d in slides/*/slides.md; do SLIDE=$(basename $(dirname $d)) pnpm build:slide; done",
+    "dev:slides": "nodemon --watch slides --ext md -x \"pnpm build:slides\""
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.15",
     "astro": "^2.0.11"
   },
   "devDependencies": {
-    "firebase-tools": "^15.1.0"
+    "@slidev/cli": "^52.14.1",
+    "@slidev/theme-default": "^0.25.0",
+    "concurrently": "^9.2.1",
+    "firebase-tools": "^15.1.0",
+    "nodemon": "^3.1.14"
   }
 }
