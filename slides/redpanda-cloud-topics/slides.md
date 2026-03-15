@@ -1,17 +1,19 @@
 ---
 theme: default
-title: "Under the Hood: Cloud Topics Architecture"
-info: A high level view of how Cloud Topics works
+title: "Redpanda Cloud Topics"
+info: A high level view of how Cloud Topics works and my contributions
+titleTemplate: '%s'
+favicon: 'https://rockwotj.com/logo.png'
 routerMode: hash
 ---
 
 # Cloud Topics
 
-Streaming Data Meets Object Storage
+Streaming data replication via S3
 
 <br>
 
-**Tyler Rockwood** — Redpanda Data
+**Tyler Rockwood**
 
 ---
 
@@ -30,7 +32,37 @@ A **Kafka-compatible** streaming data platform built from the ground up in C++
 
 ---
 
-# Redpanda Architecture
+# Redpanda Broker Architecture
+
+```
+Redpanda Node
+┌────────────────────────────────────────────────────────────────┐
+│  Kafka API layer                                               │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐    │
+│ │  Kafka handler  │─┼─► route to shard│ │  Kafka handler  │    │
+│ │  Partition rtr  │ │                 │ │  Partition rtr  │    │
+│ └────────┬────────┘ └─────────────────┘ └─────────┬───────┘    │
+│          │            inter-shard msgs            │            │
+│  Raft / Consensus layer                           │            │
+│ ┌────────┴────────┐                   ┌───────────┴─────────┐  │
+│ │  Raft group     │                   │  Raft group         │  │
+│ │  Leader elect.  │                   │  Leader elect.      │  │
+│ │  Metadata cache │                   │  Metadata cache     │  │
+│ └────────┬────────┘                   └───────────┬─────────┘  │
+│  Storage layer                                    │            │
+│ ┌────────┴────────┐                   ┌───────────┴─────────┐  │
+│ │  Log storage    │                   │  Log storage        │  │
+│ └─────────────────┘                   └─────────────────────┘  │
+│       Core 0            · · ·                Core N            │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Each core shares nothing with other cores, the have their own memory
+and communicate via message passing.
+
+---
+
+# Redpanda Cluster Architecture
 
 ```
                   ┌───────────────────────────────────────┐
@@ -90,10 +122,6 @@ Every produce request replicates data across availability zones via Raft
 | **Latency** | Single-digit ms | Sub-second |
 | **Cost driver** | Network transfer | Storage PUTs/GETs |
 | **Ideal for** | Low-latency trading, real-time | Logs, analytics, CDC, high-throughput |
-
-<br>
-
-One customer achieved **>50% infrastructure savings** and **3x less CPU** usage
 
 ---
 
@@ -156,7 +184,7 @@ Optimized for fast, cheap ingest
      │
      ▼
   Upload batch to S3 ──────────────────────► L0 File
-     │                                    (multi-partition)
+     │
      ▼
   Write placeholder to Raft Log
   (filename + offset per partition)
@@ -188,27 +216,28 @@ The placeholder batch reuses the **normal produce path** through Raft
 
 <br>
 
-- Transactions: same Raft-based commit protocol
-- Idempotency: same sequence number tracking
-- **Data payload lives in the cloud, guarantees live in Redpanda**
+- Transactions and Idempotency: handled using the exact same raft state machine as normal topics
 
 ---
 
 # Step 2: The Reconciler
 
-L0 files are optimized for **writes** — they contain data from many partitions
+L0 files are optimized for **writes** — they contain small chunks of data from many partitions
 
 ```
-  L0 File (multi-partition, small)
+  L0 File
   ┌───────────────────────────────┐
   │ TopicA-P0 │ TopicB-P1 │ ...   │   ◄── Scattered reads
+  └───────────────────────────────┘
+  ┌───────────────────────────────┐
+  │ TopicB-P1 │ TopicC-P0 │ ...   │   ◄── Scattered reads
   └───────────────────────────────┘
 ```
 
 The **Reconciler** reorganizes L0 → L1 in the background
 
 ```
-  L1 File (single-partition, large, sorted)
+  L1 File
   ┌────────────────────────────────────────────┐
   │ TopicA-P0: offset 0 │ 1 │ 2 │ 3 │ ...      │   ◄── Sequential reads
   └────────────────────────────────────────────┘
@@ -218,19 +247,14 @@ L1 files are: **larger**, **co-located** by partition, **sorted** by offset
 
 ---
 
-# L0 vs L1 Files
-
-Think of it like an **LSM tree** for streaming data
+# L0 vs L1 Storage
 
 ```
                     Write-optimized           Read-optimized
                     ┌───────────┐             ┌───────────┐
-                    │    L0     │             │    L1     │
-                    │           │  Reconcile  │           │
-  Producers ──►     │ Multi-    │ ──────────► │ Single-   │ ──► Historical
-                    │ partition │             │ partition │     Consumers
-                    │ Small     │             │ Large     │
-                    │ batches   │             │ Sorted    │
+                    │    L0     │  Reconcile  │    L1     │
+  Producers ──►     │           │ ──────────► │           │ ──► Historical
+                    │           │             │           │     Consumers
                     └───────────┘             └───────────┘
                                                    │
                                              Metadata stored
@@ -266,7 +290,6 @@ Reads are routed based on the **Last Reconciled Offset**
                           Object Storage
                     ┌──────────────────────────┐
                     │  L0 Files  │  L1 Files   │
-                    │ (batched)  │ (optimized) │
                     └──────▲──────────▲────────┘
                            │          │
                Upload ─────┘          │ Reconcile
@@ -285,67 +308,50 @@ Reads are routed based on the **Last Reconciled Offset**
 
 ---
 
-# Multi-Modal Streaming Engine
+# Project Timeline
 
-A single Redpanda cluster supports **both** topic types simultaneously
-
-```
-  ┌────────────────────────────────────────────────────┐
-  │                  Redpanda Cluster                  │
-  │                                                    │
-  │  Standard Topics          Cloud Topics             │
-  │  ┌────────────────┐      ┌────────────────┐        │
-  │  │ Raft-replicated│      │ Object storage │        │
-  │  │ Low latency    │      │ Low cost       │        │
-  │  │ Trading, RT    │      │ Logs, CDC      │        │
-  │  └────────────────┘      └────────────────┘        │
-  │                                                    │
-  │       Same Kafka API • Same binary • Same cluster  │
-  └────────────────────────────────────────────────────┘
-```
-
-No separate infrastructure — choose the right mode **per topic**
+<img src="./redpanda_kafka_project_timeline.svg" style="background-size: contain; height: 100%" />
 
 ---
 
-# My Contributions
+# LSM Tree KV Store
 
----
+Built the metadata storage engine for Cloud Topics
 
-# Contribution: LSM Tree KV Store
-
-**Built the metadata storage engine for Cloud Topics**
-
-<!-- TODO: Fill in details -->
-
-- Problem: needed a scalable, consistent metadata store for L1 file tracking
-- Solution: LSM tree-based key-value store
+- Existing Tiered Storage used a bespoke metadata management stored per partition
+- Needed a scalable metadata store for L1 file tracking for all cloud topics
+- Took a bet and ported LevelDB (with optimizations) to seastar
 - Integrated with Raft consensus for replication
-- Backed by object storage
+- Backed by object storage for disaster recovery
+- Designed a mechanism to prevent different leaders from writing conflicting files
 
 ---
 
-# Contribution: Producer Optimizations
+# Producer Optimizations
 
-**Optimized the Cloud Topics write path for throughput**
+We were running into issues scaling from 100MB/s → 1GB/s
 
-<!-- TODO: Fill in details -->
-
-- Problem: initial write path performance was insufficient
-- Solution: targeted producer optimizations
-- Result: significant throughput improvements
+<img src="./produce_path_before_clean.svg" style="background-size:contain;height:100%" />
 
 ---
 
-# Contribution: Cluster Epoch System
+# Producer Optimizations
 
-**Designed the cluster epoch mechanism**
+This removed the bottleneck and we could push multiple GB/s easily
 
-<!-- TODO: Fill in details -->
+<img src="./produce_path_after_clean.svg" style="background-size:contain;height:100%;margin-top:-50px;" />
 
-- Problem: TBD
-- Solution: cluster epoch system
-- Impact: TBD
+---
+
+# Cluster Epoch System
+
+- L0 files contain data for multiple partitions
+- There is no source of truth for what files exist
+- It is undesirable to explicitly track temporary L0 files
+- Solution was to have a cluster epoch associated with each L0 file
+- Now each partition would enforce strictly increasing cluster epoch for metadata at ingestion time
+- Reconcilation would track the epoch that it had processed and all lower epoch values could be GC'd
+- This initial approach had some issues so we had to introduce a window of epoch values we would accept
 
 ---
 

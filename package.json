@@ -11,7 +11,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "build:slide": "slidev build slides/$SLIDE/slides.md --base /slides/$SLIDE/ --out ../../public/slides/$SLIDE",
-    "build:slides": "for d in slides/*/slides.md; do SLIDE=$(basename $(dirname $d)) pnpm build:slide; done",
+    "build:slides": "rm -rf ./public/slides/; for d in slides/*/slides.md; do SLIDE=$(basename $(dirname $d)) pnpm build:slide; done",
     "dev:slides": "nodemon --watch slides --ext md -x \"pnpm build:slides\""
   },
   "dependencies": {
