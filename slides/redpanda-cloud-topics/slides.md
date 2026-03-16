@@ -345,13 +345,23 @@ This removed the bottleneck and we could push multiple GB/s easily
 
 # Cluster Epoch System
 
+Also known as L0 File Garbage Collection
+
 - L0 files contain data for multiple partitions
 - There is no source of truth for what files exist
 - It is undesirable to explicitly track temporary L0 files
+<!--
 - Solution was to have a cluster epoch associated with each L0 file
 - Now each partition would enforce strictly increasing cluster epoch for metadata at ingestion time
 - Reconcilation would track the epoch that it had processed and all lower epoch values could be GC'd
 - This initial approach had some issues so we had to introduce a window of epoch values we would accept
+-->
+
+---
+
+# Cluster Epoch System
+
+<img src="./cluster_epoch_write_centric.svg" style="background-size:contain;height:100%;margin-top:-25px;" />
 
 ---
 
