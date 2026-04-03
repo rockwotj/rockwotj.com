@@ -133,3 +133,8 @@ table {
     opacity: 0.9;
   }
 }
+
+figure figcaption {
+  padding-top: 0;
+  text-align: center;
+}
