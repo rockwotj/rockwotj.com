@@ -8,17 +8,17 @@ coverImage: "/blog/images/chorus.jpg"
 
 Recently, I’ve been fascinated by the trend of building data storage systems on object storage. Systems like [TurboPuffer][tpuf] are all the rage in the search space right now. New storage primitives like [SlateDB][slatedb] make creating bespoke storage systems feasible for a single developer or small team.
 
-A former colleague of mine, Nicolae, actually wrote this really interesting protocol and proof for a write-ahead log on object storage called [OSWALD][oswald]. It's very cool work, and there are obviously a lot of benefits to object-storage-first systems:
+A former colleague of mine, Nicolae, actually wrote this really interesting protocol and formal model for a write-ahead log on object storage called [OSWALD][oswald]. It's very cool work, and there are obviously a lot of benefits to object-storage-first systems:
 
-* Bottomless storage: You just get bottomless storage out of the box.
+* You get bottomless storage out of the box.
 
-* Easy compute mobility: You can move the compute around really easily, which drastically simplifies these Day 2 operations.
+* You can move the compute around really easily, which drastically simplifies Day 2 operations.
 
-* Robustness and scaling: Object storage is very robust and auto-scales incredibly well. It’s just a really good primitive to work with.
+* Object storage is very robust and auto-scales incredibly well. It’s just a really good primitive to work with.
 
 However, building on object storage always comes at the cost of write latency.
 
-You can normally hide read latency behind a cache. Famously, TurboPuffer will have a cold start, download the objects to local NVMe, and then do all its searches from there, so its warm latency is incredibly fast. Before a user even hits Enter in the search bar, you can pre-warm the cache and provide instant search while still storing all the data as objects.
+You can normally hide read latency behind a cache. As an example, TurboPuffer will have a cold start, download the objects to local NVMe, and then do all its searches from there, so its warm latency is incredibly fast. Before a user even hits Enter in the search bar, you can pre-warm the cache and provide instant search while still storing all the data as objects.
 
 But you can’t hide write latency unless you sacrifice durability or move off object storage entirely. Then you lose all those nice benefits of object storage.
 
