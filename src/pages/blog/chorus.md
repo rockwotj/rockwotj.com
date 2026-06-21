@@ -1,7 +1,7 @@
 ---
 layout: ../../layouts/BlogPost.astro
 title: "Chorus: A fast WAL for object storage"
-date: "2026-06-22"
+date: "2026-06-20"
 readTime: 10
 coverImage: "/blog/images/chorus.jpg"
 ---
