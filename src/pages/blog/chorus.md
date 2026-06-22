@@ -36,9 +36,7 @@ However, some use cases absolutely require higher availability and need to toler
 
 ## Enter Chorus
 
-That’s where this idea, which has been eating at me for a while, comes from. It takes the architectural inspiration of [OSWALD][oswald] and asks: Can we make that work for Rapid Storage Buckets?
-
-Can we get a single-writer write-ahead log that is incredibly fast but replicated across a region? That way, it has higher reliability than a single-zone log.
+That’s where this idea, which has been eating at me for a while, comes from. It takes the architectural inspiration of [OSWALD][oswald] and asks: Can we make that work for Rapid Storage Buckets? Can we get a single-writer write-ahead log that is incredibly fast but replicated across a region?
 
 And that’s where Chorus comes in.
 
@@ -68,7 +66,7 @@ Inside our metadata, we store a few things:
 
 * Owner: A random ID of the process that owns the current epoch.
 
-* Segments: A log is broken up into segments so that we can perform prefix truncation and clean up old data. There are three types of segments, and we store all their metadata in the regional register. We don't use LIST APIs (outside of orphan cleanup) and clever naming schemes because those always seem to end with a nasty race condition:
+* Segments: A log is broken up into segments so that we can perform prefix truncation and clean up old data. There are three types of segments, and we store all their metadata in the regional register. We don't use LIST APIs (outside of orphan cleanup) and clever naming schemes because those are prone to nasty race conditions:
 
   * The Active Segment: The segment that's currently getting written to.
 
