@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-id="th-modified">Web Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: linear-gradient(180deg, #001a33 0%, #003366 30%, #004d80 60%, #006699 100%);
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Underwater effects */
+        .bubble {
+            position: absolute;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2));
+            border-radius: 50%;
+            animation: rise linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes rise {
+            0% {
+                transform: translateY(100vh) scale(1);
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(-20px) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        /* Light rays */
+        .light-ray {
+            position: absolute;
+            top: 0;
+            width: 60px;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(255,255,200,0.15) 0%, transparent 70%);
+            transform: skewX(-15deg);
+            pointer-events: none;
+        }
+
+        /* Seaweed */
+        .seaweed {
+            position: absolute;
+            bottom: 0;
+            width: 20px;
+            pointer-events: none;
+        }
+
+        .seaweed-strand {
+            position: absolute;
+            bottom: 0;
+            width: 8px;
+            background: linear-gradient(to top, #1a5c1a, #2d8c2d);
+            border-radius: 50% 50% 0 0;
+            transform-origin: bottom center;
+            animation: sway 3s ease-in-out infinite;
+        }
+
+        @keyframes sway {
+            0%, 100% { transform: rotate(-10deg); }
+            50% { transform: rotate(10deg); }
+        }
+
+        /* Player diver */
+        #player {
+            position: absolute;
+            right: 50px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+        }
+
+        .diver {
+            width: 80px;
+            height: 120px;
+            position: relative;
+        }
+
+        .diver-body {
+            width: 50px;
+            height: 70px;
+            background: linear-gradient(135deg, #ff6b00 0%, #cc5500 100%);
+            border-radius: 25px 25px 15px 15px;
+            position: absolute;
+            top: 25px;
+            left: 15px;
+        }
+
+        .diver-head {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #222 0%, #444 100%);
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            left: 20px;
+            border: 3px solid #666;
+            z-index: 2;
+        }
+
+        .diver-mask {
+            width: 30px;
+            height: 18px;
+            background: linear-gradient(135deg, #4da6ff 0%, #0066cc 100%);
+            border-radius: 5px;
+            position: absolute;
+            top: 10px;
+            left: 5px;
+            border: 2px solid #333;
+        }
+
+        .diver-tank {
+            width: 20px;
+            height: 45px;
+            background: linear-gradient(90deg, #666 0%, #999 50%, #666 100%);
+            border-radius: 10px;
+            position: absolute;
+            top: 30px;
+            right: 5px;
+        }
+
+        .diver-fin {
+            width: 35px;
+            height: 15px;
+            background: #222;
+            position: absolute;
+            bottom: 0;
+            border-radius: 0 20px 20px 0;
+        }
+
+        .diver-fin.left { left: 10px; }
+        .diver-fin.right { left: 10px; bottom: 20px; }
+
+        .diver-arm {
+            width: 30px;
+            height: 10px;
+            background: #ff6b00;
+            position: absolute;
+            top: 45px;
+            left: 0;
+            border-radius: 5px;
+            transform-origin: right center;
+            animation: armWave 2s ease-in-out infinite;
+        }
+
+        @keyframes armWave {
+            0%, 100% { transform: rotate(-10deg); }
+            50% { transform: rotate(10deg); }
+        }
+
+        /* Shark styling - Friendly colorful sharks! */
+        .shark {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            transition: left 0.1s linear;
+            z-index: 5;
+            animation: swim 0.8s ease-in-out infinite;
+        }
+
+        @keyframes swim {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-5px) rotate(1deg); }
+            75% { transform: translateY(5px) rotate(-1deg); }
+        }
+
+        .shark-body {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .shark-main {
+            width: 120px;
+            height: 60px;
+            background: linear-gradient(180deg, #5B9BD5 0%, #70B8FF 50%, #A8D5FF 100%);
+            border-radius: 25px 60px 60px 25px;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Dorsal fin */
+        .shark-main::before {
+            content: '';
+            position: absolute;
+            top: -22px;
+            left: 30px;
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-bottom: 30px solid #5B9BD5;
+            animation: finWiggle 0.5s ease-in-out infinite;
+        }
+
+        @keyframes finWiggle {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+
+        /* Bottom fin */
+        .shark-main::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 35px;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 18px solid #A8D5FF;
+        }
+
+        .shark-tail {
+            width: 0;
+            height: 0;
+            border-top: 25px solid transparent;
+            border-bottom: 25px solid transparent;
+            border-right: 40px solid #5B9BD5;
+            margin-left: -8px;
+            animation: tailWag 0.3s ease-in-out infinite;
+            transform-origin: right center;
+        }
+
+        @keyframes tailWag {
+            0%, 100% { transform: rotate(-8deg); }
+            50% { transform: rotate(8deg); }
+        }
+
+        .shark-eye {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            top: 15px;
+            right: 20px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .shark-eye::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #333;
+            border-radius: 50%;
+            top: 4px;
+            right: 2px;
+        }
+
+        /* Cute eye sparkle */
+        .shark-eye::before {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #fff;
+            border-radius: 50%;
+            top: 5px;
+            right: 3px;
+            z-index: 1;
+        }
+
+        .shark-mouth {
+            position: absolute;
+            width: 20px;
+            height: 10px;
+            background: #FF7B9C;
+            border-radius: 0 0 12px 12px;
+            bottom: 14px;
+            right: 10px;
+            border: 2px solid #E85A7C;
+            border-top: none;
+        }
+
+        /* Friendly smile instead of teeth */
+        .shark-mouth::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 5px;
+            width: 15px;
+            height: 4px;
+            background: transparent;
+        }
+
+        /* Blush cheek */
+        .shark-blush {
+            position: absolute;
+            width: 12px;
+            height: 8px;
+            background: rgba(255, 150, 180, 0.6);
+            border-radius: 50%;
+            top: 30px;
+            right: 8px;
+        }
+
+        .shark-word {
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #FFE066 0%, #FFD93D 100%);
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            white-space: nowrap;
+            border: 4px solid #FFB347;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            text-transform: uppercase;
+        }
+
+        .shark-word .typed {
+            color: #22C55E;
+        }
+
+        .shark-word .current {
+            color: #EF4444;
+            text-decoration: underline;
+            text-decoration-thickness: 3px;
+        }
+
+        /* Color variations for sharks */
+        .shark.color-pink .shark-main {
+            background: linear-gradient(180deg, #F472B6 0%, #FF8DC7 50%, #FFC0D9 100%);
+        }
+        .shark.color-pink .shark-main::before { border-bottom-color: #F472B6; }
+        .shark.color-pink .shark-main::after { border-top-color: #FFC0D9; }
+        .shark.color-pink .shark-tail { border-right-color: #F472B6; }
+
+        .shark.color-purple .shark-main {
+            background: linear-gradient(180deg, #A78BFA 0%, #C4B5FD 50%, #DDD6FE 100%);
+        }
+        .shark.color-purple .shark-main::before { border-bottom-color: #A78BFA; }
+        .shark.color-purple .shark-main::after { border-top-color: #DDD6FE; }
+        .shark.color-purple .shark-tail { border-right-color: #A78BFA; }
+
+        .shark.color-green .shark-main {
+            background: linear-gradient(180deg, #4ADE80 0%, #86EFAC 50%, #BBF7D0 100%);
+        }
+        .shark.color-green .shark-main::before { border-bottom-color: #4ADE80; }
+        .shark.color-green .shark-main::after { border-top-color: #BBF7D0; }
+        .shark.color-green .shark-tail { border-right-color: #4ADE80; }
+
+        .shark.color-orange .shark-main {
+            background: linear-gradient(180deg, #FB923C 0%, #FDBA74 50%, #FED7AA 100%);
+        }
+        .shark.color-orange .shark-main::before { border-bottom-color: #FB923C; }
+        .shark.color-orange .shark-main::after { border-top-color: #FED7AA; }
+        .shark.color-orange .shark-tail { border-right-color: #FB923C; }
+
+        .shark.color-yellow .shark-main {
+            background: linear-gradient(180deg, #FACC15 0%, #FDE047 50%, #FEF08A 100%);
+        }
+        .shark.color-yellow .shark-main::before { border-bottom-color: #FACC15; }
+        .shark.color-yellow .shark-main::after { border-top-color: #FEF08A; }
+        .shark.color-yellow .shark-tail { border-right-color: #FACC15; }
+
+        /* All sharks same friendly size */
+        .shark.small .shark-main,
+        .shark.large .shark-main,
+        .shark.normal .shark-main {
+            width: 120px;
+            height: 60px;
+        }
+
+        .shark.small .shark-tail,
+        .shark.large .shark-tail,
+        .shark.normal .shark-tail {
+            border-top-width: 25px;
+            border-bottom-width: 25px;
+            border-right-width: 40px;
+        }
+
+        /* Input area */
+        #input-area {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+        }
+
+        #word-input {
+            width: 400px;
+            padding: 20px 30px;
+            font-size: 36px;
+            border: 4px solid #FFB347;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            outline: none;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        #word-input:focus {
+            box-shadow: 0 5px 30px rgba(72, 187, 120, 0.5);
+            border-color: #48bb78;
+        }
+
+        /* HUD */
+        #hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 100;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 24px;
+            border-radius: 15px;
+            color: #fff;
+            font-size: 24px;
+            border: 3px solid #FFB347;
+        }
+
+        .hud-item span {
+            color: #FFD93D;
+            font-weight: bold;
+        }
+
+        /* Hide WPM for kids */
+        .hud-item:last-child {
+            display: none;
+        }
+
+        /* Health bar */
+        #health-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #health-bar {
+            width: 150px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #666;
+        }
+
+        #health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #c53030, #e53e3e);
+            transition: width 0.3s ease;
+        }
+
+        #health-fill.healthy {
+            background: linear-gradient(90deg, #2f855a, #48bb78);
+        }
+
+        #health-fill.warning {
+            background: linear-gradient(90deg, #c05621, #ed8936);
+        }
+
+        /* Game over / Start screen */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .overlay h1 {
+            font-size: 64px;
+            color: #fff;
+            text-shadow: 0 0 20px #4da6ff;
+            margin-bottom: 20px;
+        }
+
+        .overlay h2 {
+            font-size: 36px;
+            color: #e53e3e;
+            margin-bottom: 30px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            color: #a0aec0;
+            margin-bottom: 10px;
+        }
+
+        .overlay button {
+            margin-top: 30px;
+            padding: 25px 60px;
+            font-size: 36px;
+            background: linear-gradient(135deg, #FFD93D, #FFB347);
+            color: #333;
+            border: 4px solid #FF8C00;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+
+        .overlay button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 40px rgba(255, 183, 71, 0.6);
+        }
+
+        .stats {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        /* Combo indicator */
+        #combo {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            font-size: 24px;
+            color: #ffd700;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+            text-shadow: 0 0 10px #ffd700;
+        }
+
+        #combo.visible {
+            opacity: 1;
+        }
+
+        /* Kill effect */
+        .kill-effect {
+            position: absolute;
+            pointer-events: none;
+            animation: explode 0.5s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .kill-particle {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: #FFD93D;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #FFD93D;
+        }
+
+        /* Celebration text */
+        .celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            font-weight: bold;
+            color: #FFD93D;
+            text-shadow: 0 0 20px #FF8C00, 0 0 40px #FFD93D;
+            pointer-events: none;
+            z-index: 200;
+            animation: celebrationPop 0.8s ease-out forwards;
+        }
+
+        @keyframes celebrationPop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            30% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+
+        /* Level indicator */
+        #level-up {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #ffd700;
+            font-weight: bold;
+            text-shadow: 0 0 20px #ffd700;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 200;
+        }
+
+        #level-up.show {
+            animation: levelUp 2s ease-out forwards;
+        }
+
+        @keyframes levelUp {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            20% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            80% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+<meta property="og:title" content="Web Page" data-id="th-modified" ><meta name="description" content="typer_shark" data-id="th-modified" ><meta property="og:description" content="typer_shark" data-id="th-modified" ><meta property="og:image" content="https://tiiny.host/assets/logo-purple-bg.png" data-id="th-modified" ><meta property="og:url" content="https://typer-shark.tiiny.site/" data-id="th-modified" ><meta property="og:type" content="website" data-id="th-modified" ><script defer data-domain="typer-shark.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script><script type="text/javascript" src="https://tiiny.host/ad-script.js"></script></head>
+<body>
+    <div id="game-container">
+        <!-- Light rays -->
+        <div class="light-ray" style="left: 10%;"></div>
+        <div class="light-ray" style="left: 30%;"></div>
+        <div class="light-ray" style="left: 50%;"></div>
+        <div class="light-ray" style="left: 70%;"></div>
+        <div class="light-ray" style="left: 90%;"></div>
+
+        <!-- Player -->
+        <div id="player">
+            <div class="diver">
+                <div class="diver-head">
+                    <div class="diver-mask"></div>
+                </div>
+                <div class="diver-body"></div>
+                <div class="diver-tank"></div>
+                <div class="diver-arm"></div>
+                <div class="diver-fin left"></div>
+                <div class="diver-fin right"></div>
+            </div>
+        </div>
+
+        <!-- Sharks will be spawned here -->
+        <div id="shark-container"></div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-item">Score: <span id="score">0</span></div>
+        <div class="hud-item">Level: <span id="level">1</span></div>
+        <div class="hud-item" id="health-container">
+            Health:
+            <div id="health-bar">
+                <div id="health-fill" class="healthy" style="width: 100%;"></div>
+            </div>
+        </div>
+        <div class="hud-item">WPM: <span id="wpm">0</span></div>
+    </div>
+
+    <!-- Combo indicator -->
+    <div id="combo">🔥 Combo x1</div>
+
+    <!-- Level up indicator -->
+    <div id="level-up">LEVEL UP!</div>
+
+    <!-- Input -->
+    <div id="input-area">
+        <input type="text" id="word-input" placeholder="Type here..." autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay">
+        <h1>🦈 Typer Shark 🦈</h1>
+        <p>Type the words to make the sharks swim away!</p>
+        <p>You can do it!</p>
+        <p style="font-size: 22px; color: #FFD93D; margin-top: 20px;">Look at the word above the shark and type it!</p>
+        <button id="start-btn">PLAY!</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over" class="overlay hidden">
+        <h2 style="color: #FFD93D; font-size: 48px;">GOOD TRY!</h2>
+        <div class="stats">
+            <p style="font-size: 28px;">You got <span id="final-score" style="color: #4ECDC4;">0</span> points!</p>
+            <p style="font-size: 28px;">Level: <span id="final-level" style="color: #4ECDC4;">1</span></p>
+            <p style="font-size: 28px;">Sharks: <span id="sharks-defeated" style="color: #4ECDC4;">0</span></p>
+            <p style="display: none;">Best WPM: <span id="best-wpm">0</span></p>
+        </div>
+        <button id="restart-btn">TRY AGAIN!</button>
+    </div>
+
+    <script>
+        // Word lists - Kid-friendly short words for a 6-year-old
+        const wordLists = {
+            easy: ['cat', 'dog', 'sun', 'hat', 'red', 'cup', 'run', 'fun', 'big', 'mom', 'dad', 'bed', 'bus', 'box', 'can', 'car', 'cow', 'day', 'egg', 'fan', 'fox', 'got', 'hen', 'hip', 'hop', 'hot', 'hug', 'jam', 'jet', 'jug', 'kid', 'lap', 'leg', 'lip', 'log', 'map', 'mat', 'men', 'mix', 'mop', 'mud', 'nap', 'net', 'not', 'nut', 'pan', 'pat', 'paw', 'pen', 'pet', 'pig', 'pin', 'pit', 'pop', 'pot', 'pup', 'ran', 'rat', 'rib', 'rip', 'rob', 'rod', 'rug', 'sad', 'sat', 'set', 'sit', 'six', 'sob', 'sub', 'sum', 'tab', 'tag', 'tan', 'tap', 'ten', 'tin', 'tip', 'top', 'tub', 'tug', 'van', 'vet', 'wag', 'web', 'wet', 'wig', 'win', 'yam', 'yes', 'yum', 'zip', 'zoo'],
+            medium: ['fish', 'bird', 'blue', 'ball', 'frog', 'cake', 'duck', 'game', 'jump', 'kite', 'lion', 'milk', 'nose', 'pink', 'swim', 'tree', 'wave', 'bear', 'boat', 'book', 'cool', 'fast', 'good', 'hand', 'king', 'lake', 'moon', 'play', 'rain', 'ship', 'snow', 'star', 'stop', 'tail', 'toys'],
+            hard: ['apple', 'happy', 'puppy', 'bunny', 'candy', 'tiger', 'water', 'sunny', 'kitty', 'beach', 'cloud', 'green', 'house', 'mouse', 'plant', 'smile', 'train', 'truck', 'zebra', 'shark']
+        };
+
+        // Game state
+        let gameState = {
+            running: false,
+            score: 0,
+            level: 1,
+            health: 100,
+            sharks: [],
+            currentTarget: null,
+            combo: 0,
+            maxCombo: 0,
+            sharksDefeated: 0,
+            wordsTyped: 0,
+            startTime: null,
+            bestWpm: 0
+        };
+
+        // Game settings - Easy mode for kids!
+        const settings = {
+            baseSpeed: 0.25,          // Much slower sharks
+            spawnInterval: 5000,      // Longer time between sharks
+            maxSharks: 1,             // Only 1 shark at a time!
+            playerX: window.innerWidth - 150
+        };
+
+        // DOM elements
+        const gameContainer = document.getElementById('game-container');
+        const sharkContainer = document.getElementById('shark-container');
+        const wordInput = document.getElementById('word-input');
+        const scoreDisplay = document.getElementById('score');
+        const levelDisplay = document.getElementById('level');
+        const healthFill = document.getElementById('health-fill');
+        const wpmDisplay = document.getElementById('wpm');
+        const comboDisplay = document.getElementById('combo');
+        const levelUpDisplay = document.getElementById('level-up');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over');
+
+        // Create bubbles
+        function createBubbles() {
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const bubble = document.createElement('div');
+                    bubble.className = 'bubble';
+                    const size = Math.random() * 15 + 5;
+                    bubble.style.width = size + 'px';
+                    bubble.style.height = size + 'px';
+                    bubble.style.left = Math.random() * 100 + '%';
+                    bubble.style.animationDuration = (Math.random() * 5 + 5) + 's';
+                    bubble.style.animationDelay = Math.random() * 5 + 's';
+                    gameContainer.appendChild(bubble);
+                }, i * 200);
+            }
+        }
+
+        // Create seaweed
+        function createSeaweed() {
+            for (let i = 0; i < 15; i++) {
+                const seaweed = document.createElement('div');
+                seaweed.className = 'seaweed';
+                seaweed.style.left = (i * 7 + Math.random() * 3) + '%';
+                
+                const numStrands = Math.floor(Math.random() * 3) + 2;
+                for (let j = 0; j < numStrands; j++) {
+                    const strand = document.createElement('div');
+                    strand.className = 'seaweed-strand';
+                    strand.style.height = (Math.random() * 80 + 40) + 'px';
+                    strand.style.left = (j * 8) + 'px';
+                    strand.style.animationDelay = (Math.random() * 2) + 's';
+                    seaweed.appendChild(strand);
+                }
+                
+                gameContainer.appendChild(seaweed);
+            }
+        }
+
+        // Get word based on level - Kid-friendly progression
+        function getWord() {
+            const level = gameState.level;
+            let list;
+
+            // Very gradual difficulty increase for kids
+            if (level <= 5) {
+                list = wordLists.easy;  // 3-letter words only
+            } else if (level <= 10) {
+                list = Math.random() < 0.8 ? wordLists.easy : wordLists.medium;
+            } else {
+                list = Math.random() < 0.6 ? wordLists.medium : wordLists.easy;
+            }
+
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        // Get random shark color
+        function getSharkColor() {
+            const colors = ['', 'color-pink', 'color-purple', 'color-green', 'color-orange', 'color-yellow'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Create shark
+        function createShark() {
+            // Only 1 shark at a time for kids!
+            if (!gameState.running || gameState.sharks.length >= 1) return;
+
+            const word = getWord();
+            const shark = {
+                id: Date.now() + Math.random(),
+                word: word,
+                typed: '',
+                x: -180,
+                y: Math.random() * (window.innerHeight - 250) + 120,
+                speed: settings.baseSpeed + (gameState.level * 0.02),  // Very slow speed increase
+                size: 'normal',
+                color: getSharkColor()
+            };
+
+            gameState.sharks.push(shark);
+            renderShark(shark);
+        }
+
+        // Render shark
+        function renderShark(shark) {
+            const sharkEl = document.createElement('div');
+            sharkEl.className = `shark ${shark.size} ${shark.color}`;
+            sharkEl.id = `shark-${shark.id}`;
+            sharkEl.style.left = shark.x + 'px';
+            sharkEl.style.top = shark.y + 'px';
+
+            sharkEl.innerHTML = `
+                <div class="shark-body">
+                    <div class="shark-tail"></div>
+                    <div class="shark-main">
+                        <div class="shark-eye"></div>
+                        <div class="shark-blush"></div>
+                        <div class="shark-mouth"></div>
+                    </div>
+                </div>
+                <div class="shark-word">${formatWord(shark)}</div>
+            `;
+
+            sharkContainer.appendChild(sharkEl);
+        }
+
+        // Format word with typed/current highlighting
+        function formatWord(shark) {
+            const typed = shark.typed;
+            const remaining = shark.word.slice(typed.length);
+            const isTarget = gameState.currentTarget === shark;
+            
+            let html = `<span class="typed">${typed}</span>`;
+            if (isTarget && remaining.length > 0) {
+                html += `<span class="current">${remaining[0]}</span>`;
+                html += remaining.slice(1);
+            } else {
+                html += remaining;
+            }
+            
+            return html;
+        }
+
+        // Update shark position
+        function updateShark(shark) {
+            const sharkEl = document.getElementById(`shark-${shark.id}`);
+            if (!sharkEl) return;
+
+            shark.x += shark.speed;
+            sharkEl.style.left = shark.x + 'px';
+
+            // Update word display
+            const wordEl = sharkEl.querySelector('.shark-word');
+            wordEl.innerHTML = formatWord(shark);
+
+            // Check if shark reached player - less damage for kids!
+            if (shark.x >= settings.playerX - 100) {
+                takeDamage(10);  // Only 10 damage, gives 10 chances!
+                removeShark(shark);
+            }
+        }
+
+        // Remove shark
+        function removeShark(shark, killed = false) {
+            const index = gameState.sharks.indexOf(shark);
+            if (index > -1) {
+                gameState.sharks.splice(index, 1);
+            }
+
+            const sharkEl = document.getElementById(`shark-${shark.id}`);
+            if (sharkEl) {
+                if (killed) {
+                    createKillEffect(shark.x + 50, shark.y);
+                }
+                sharkEl.remove();
+            }
+
+            if (gameState.currentTarget === shark) {
+                gameState.currentTarget = null;
+            }
+        }
+
+        // Create kill effect
+        function createKillEffect(x, y) {
+            const effect = document.createElement('div');
+            effect.className = 'kill-effect';
+            effect.style.left = x + 'px';
+            effect.style.top = y + 'px';
+
+            // More colorful particles!
+            const colors = ['#FFD93D', '#FF6B6B', '#4ECDC4', '#A78BFA', '#F472B6'];
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'kill-particle';
+                particle.style.background = colors[i % colors.length];
+                const angle = (i / 12) * Math.PI * 2;
+                const distance = 40;
+                particle.style.left = Math.cos(angle) * distance + 'px';
+                particle.style.top = Math.sin(angle) * distance + 'px';
+                effect.appendChild(particle);
+            }
+
+            gameContainer.appendChild(effect);
+            setTimeout(() => effect.remove(), 500);
+
+            // Show celebration message!
+            showCelebration();
+        }
+
+        // Show celebration for kids!
+        const celebrations = ['YAY!', 'GREAT!', 'WOW!', 'NICE!', 'COOL!', 'SUPER!', 'YES!'];
+        function showCelebration() {
+            const celebration = document.createElement('div');
+            celebration.className = 'celebration';
+            celebration.textContent = celebrations[Math.floor(Math.random() * celebrations.length)];
+            document.body.appendChild(celebration);
+            setTimeout(() => celebration.remove(), 800);
+        }
+
+        // Take damage
+        function takeDamage(amount) {
+            gameState.health -= amount;
+            gameState.combo = 0;
+            updateCombo();
+
+            if (gameState.health <= 0) {
+                gameState.health = 0;
+                gameOver();
+            }
+
+            updateHealthBar();
+        }
+
+        // Update health bar
+        function updateHealthBar() {
+            healthFill.style.width = gameState.health + '%';
+            healthFill.className = '';
+            
+            if (gameState.health > 60) {
+                healthFill.classList.add('healthy');
+            } else if (gameState.health > 30) {
+                healthFill.classList.add('warning');
+            }
+        }
+
+        // Handle input
+        function handleInput(e) {
+            if (!gameState.running) return;
+
+            const typed = wordInput.value.toLowerCase();
+            
+            if (typed.length === 0) {
+                gameState.currentTarget = null;
+                return;
+            }
+
+            // Find or confirm target
+            if (!gameState.currentTarget) {
+                // Find shark that starts with typed letter
+                const target = gameState.sharks.find(s => 
+                    s.word.startsWith(typed) && s.typed.length === 0
+                );
+                if (target) {
+                    gameState.currentTarget = target;
+                }
+            }
+
+            if (gameState.currentTarget) {
+                const shark = gameState.currentTarget;
+                
+                // Check if typed matches
+                if (shark.word.startsWith(typed)) {
+                    shark.typed = typed;
+                    
+                    // Word complete
+                    if (typed === shark.word) {
+                        killShark(shark);
+                        wordInput.value = '';
+                        gameState.currentTarget = null;
+                    }
+                } else {
+                    // Wrong letter - reset
+                    wordInput.value = shark.typed;
+                }
+            } else {
+                // No valid target found
+                wordInput.value = '';
+            }
+        }
+
+        // Kill shark
+        function killShark(shark) {
+            const points = shark.word.length * 10 * (1 + gameState.combo * 0.1);
+            gameState.score += Math.floor(points);
+            gameState.sharksDefeated++;
+            gameState.wordsTyped++;
+            gameState.combo++;
+            
+            if (gameState.combo > gameState.maxCombo) {
+                gameState.maxCombo = gameState.combo;
+            }
+
+            updateCombo();
+            updateScore();
+            removeShark(shark, true);
+
+            // Level up check - every 5 sharks for kids!
+            if (gameState.sharksDefeated % 5 === 0) {
+                levelUp();
+            }
+
+            // Update WPM
+            updateWPM();
+        }
+
+        // Update combo display
+        function updateCombo() {
+            if (gameState.combo > 1) {
+                comboDisplay.textContent = `🔥 Combo x${gameState.combo}`;
+                comboDisplay.classList.add('visible');
+            } else {
+                comboDisplay.classList.remove('visible');
+            }
+        }
+
+        // Update score display
+        function updateScore() {
+            scoreDisplay.textContent = gameState.score;
+        }
+
+        // Update WPM
+        function updateWPM() {
+            if (!gameState.startTime || gameState.wordsTyped === 0) return;
+            
+            const elapsed = (Date.now() - gameState.startTime) / 1000 / 60; // minutes
+            const wpm = Math.floor(gameState.wordsTyped / elapsed);
+            
+            if (wpm > gameState.bestWpm) {
+                gameState.bestWpm = wpm;
+            }
+            
+            wpmDisplay.textContent = wpm;
+        }
+
+        // Level up
+        function levelUp() {
+            gameState.level++;
+            levelDisplay.textContent = gameState.level;
+
+            // Show level up message
+            levelUpDisplay.textContent = `LEVEL ${gameState.level}!`;
+            levelUpDisplay.classList.add('show');
+            setTimeout(() => levelUpDisplay.classList.remove('show'), 2000);
+
+            // Heal a lot - good job bonus for kids!
+            gameState.health = Math.min(100, gameState.health + 30);
+            updateHealthBar();
+        }
+
+        // Game loop
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            if (!gameState.running) return;
+
+            const delta = timestamp - lastTime;
+            lastTime = timestamp;
+
+            // Update sharks
+            [...gameState.sharks].forEach(shark => updateShark(shark));
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Spawn loop - spawn new shark shortly after defeating one
+        let spawnInterval;
+        function startSpawning() {
+            spawnInterval = setInterval(() => {
+                createShark();
+            }, Math.max(3000, settings.spawnInterval - (gameState.level * 100)));  // Slower spawn rate
+        }
+
+        // Start game
+        function startGame() {
+            // Reset state
+            gameState = {
+                running: true,
+                score: 0,
+                level: 1,
+                health: 100,
+                sharks: [],
+                currentTarget: null,
+                combo: 0,
+                maxCombo: 0,
+                sharksDefeated: 0,
+                wordsTyped: 0,
+                startTime: Date.now(),
+                bestWpm: 0
+            };
+
+            // Update displays
+            updateScore();
+            levelDisplay.textContent = '1';
+            updateHealthBar();
+            wpmDisplay.textContent = '0';
+            updateCombo();
+
+            // Clear sharks
+            sharkContainer.innerHTML = '';
+
+            // Hide screens
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+
+            // Focus input
+            wordInput.value = '';
+            wordInput.focus();
+
+            // Start loops
+            createShark();
+            createShark();
+            startSpawning();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Game over
+        function gameOver() {
+            gameState.running = false;
+            clearInterval(spawnInterval);
+
+            // Update final stats
+            document.getElementById('final-score').textContent = gameState.score;
+            document.getElementById('final-level').textContent = gameState.level;
+            document.getElementById('sharks-defeated').textContent = gameState.sharksDefeated;
+            document.getElementById('best-wpm').textContent = gameState.bestWpm;
+
+            // Show game over screen
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        // Initialize
+        function init() {
+            createBubbles();
+            createSeaweed();
+
+            // Event listeners
+            wordInput.addEventListener('input', handleInput);
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn').addEventListener('click', startGame);
+
+            // Keep focus on input
+            document.addEventListener('keydown', () => {
+                if (gameState.running) {
+                    wordInput.focus();
+                }
+            });
+
+            // Prevent form submission
+            wordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
