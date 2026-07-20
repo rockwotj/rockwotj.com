@@ -90,7 +90,7 @@ I hope Chorus can become, alongside SlateDB, one of the major components people 
 
 Please feel free to reach out if you build with Chorus or are interested in this work. Thanks for reading!
 
-[oswald]: https://nvartolomei.com/
+[oswald]: https://nvartolomei.com/oswald/
 [tpuf]: https://turbopuffer.com/docs/architecture
 [rapid-ga]: https://cloud.google.com/blog/products/storage-data-transfer/cloud-storage-rapid-turbocharges-object-storage-for-ai-analytics
 [slatedb]: https://slatedb.io/
