@@ -6,7 +6,9 @@ readTime: 5
 coverImage: "/blog/images/firestore-txn.jpg"
 ---
 
-I've been seeing a lot of misinformation from LLMs about the transaction model that [Google Cloud Firestore][firestore] exposes. I'm not sure if that's because it's tied to the Firebase Realtime Database or Google Cloud Datastore, which historically have had limited transactions in one way or another. If you read the [Firestore whitepaper][whitepaper] you can see that it's built upon [Spanner][spanner]. This means that Firestore transactions under the hood are essentially just Spanner transactions and they inherit full serializability and [external consistency][external-consistency] from Spanner. Database isolation levels can feel like a very academic subject for a full stack developer, but if you aren't using serializable transactions and your app is any more complex than a trivial CRUD app, you probably have some bugs unless you're always *very* careful.
+I've been seeing a lot of misinformation from LLMs about the transaction model that [Google Cloud Firestore][firestore] exposes. I'm not sure if that's because it's tied to the Firebase Realtime Database or Google Cloud Datastore, which historically have had limited transactions in one way or another. If you read the [Firestore whitepaper][whitepaper] you can see that it's built upon [Spanner][spanner]. This means that Firestore transactions under the hood are essentially just Spanner transactions and they inherit [full serializability][serializability] and [external consistency][external-consistency] from Spanner. Serializability is a property of transactions which means that the database executes the transactions in a manner *as if* they were done sequentially. However, in reality it would be super slow to do this in practice so transactions that don't touch the same rows/documents end up executing concurrently.
+
+Database isolation levels can feel like a very academic subject for a full stack developer, but if you aren't using serializable transactions and your app is any more complex than a trivial CRUD app, you probably have some bugs unless you're always *very* careful.
 
 ## A motivating example
 
@@ -181,3 +183,4 @@ It's actually incredibly freeing as a developer to be able to work in purely ser
 [whitepaper]: https://research.google/pubs/firestore-the-nosql-serverless-database-for-the-application-developer/
 [spanner]: https://en.wikipedia.org/wiki/Spanner_(database)
 [external-consistency]: https://docs.cloud.google.com/spanner/docs/true-time-external-consistency
+[serializability]: https://docs.cloud.google.com/spanner/docs/isolation-levels#serializable
