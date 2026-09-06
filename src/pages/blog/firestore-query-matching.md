@@ -108,7 +108,7 @@ We built this primitive, and rolled it out in what we called "shadow mode", wher
 
 It ended up rolling out just in time, we were just starting to see a big ramp-up in scale and higher adoption rates of the realtime queries.
 
-It very rapidly reduced latency and increased throughput across the read side of the Watch system. My recolection is that we saw something like a **10x decrease in latency** and a **10x increase in throughput**.
+It very rapidly reduced latency and increased throughput across the read side of the Watch system. My recolection is that we saw greater than a 10x improvement for latency and throughput. I don't remember the exact numbers at this point, but I remember looking at the perfy submission charts and thinking they looked too wild to be real.
 
 That work earned me a **Gold Perfy** award. Google used to give out these awards periodically for impressive performance engineering work, so it was a huge honor to have this project recognized.
 
