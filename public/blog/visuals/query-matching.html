@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Firestore query matching</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      /* Standalone defaults use the same Pico palette as the blog. The host
+         replaces these tokens when embedded; accents have no separate palette. */
+      --pico-background-color: #fff; --pico-card-background-color: #fff;
+      --pico-color: #373c44; --pico-muted-color: #646b79;
+      --pico-muted-border-color: rgb(231, 234, 239.5);
+      --pico-form-element-border-color: #cfd5e2;
+      --pico-code-background-color: rgb(243, 244.5, 246.75);
+      --pico-h3-color: #424751; --pico-primary: #0172ad;
+      --pico-primary-background: #0172ad; --pico-primary-hover-background: #02659a;
+      --pico-primary-inverse: #fff; --pico-primary-focus: rgba(2, 154, 232, .5);
+      --pico-range-border-color: #dfe3eb; --pico-range-active-border-color: #bfc7d9;
+      --pico-range-thumb-color: #525f7a;
+      --pico-range-thumb-active-color: var(--pico-primary-background);
+      --pico-range-thumb-border-color: var(--pico-background-color);
+      --paper: var(--pico-card-background-color); --surface: var(--paper);
+      --ink: var(--pico-color); --muted: var(--pico-muted-color);
+      --line: var(--pico-muted-border-color); --node-border: var(--pico-form-element-border-color);
+      --quiet: var(--pico-code-background-color); --heading: var(--pico-h3-color);
+      --accent: var(--pico-primary);
+      --accent-soft: var(--quiet);
+      --radius: .25rem;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font: 400 100%/1.5 system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--paper); color: var(--ink);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --pico-background-color: rgb(19, 22.5, 30.5); --pico-card-background-color: #181c25;
+        --pico-color: #c2c7d0; --pico-muted-color: #7b8495;
+        --pico-muted-border-color: #202632; --pico-form-element-border-color: #2a3140;
+        --pico-code-background-color: rgb(26, 30.5, 40.25);
+        --pico-h3-color: #c2c7d0; --pico-primary: #01aaff;
+        --pico-primary-hover-background: #017fc0; --pico-primary-focus: rgba(1, 170, 255, .375);
+        --pico-range-border-color: #202632; --pico-range-active-border-color: #2a3140;
+      }
+    }
+    @supports (background: color-mix(in srgb, black, white)) {
+      :root { --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    button { cursor: pointer; touch-action: manipulation; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    code, .mono { font-family: var(--mono); }
+    h1, h2, h3 { color: var(--heading); font-family: inherit; font-weight: 700; }
+    h1 { font-size: 2rem; line-height: 1.125; margin: .5rem 0 1.5rem; }
+    .figure { position: relative; max-width: 72rem; margin: auto; padding: 1.5rem 1rem; }
+    :root[data-embedded] .figure { padding-block: 0; }
+    :root[data-embedded] .figure > header { display: none; }
+    .delivery-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .delivery-path path { fill: none; stroke: var(--accent); stroke-width: 1.5; opacity: .5; }
+    .delivery-path circle { fill: var(--accent); }
+    .eyebrow { display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); font-size: .875rem; }
+    .arrival { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 2rem; }
+    .document { position: relative; padding: 1rem; background: var(--quiet); border-radius: var(--radius); transform-origin: left center; }
+    .document-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; color: var(--muted); font-size: .75rem; margin-bottom: .75rem; }
+    .doc-type { font-weight: 600; }
+    .json { font: .875rem/1.75 var(--mono); }
+    .json-row { display: flex; gap: .5rem; padding-left: .5rem; }
+    .json-key { color: var(--muted); min-width: 9ch; }
+    .json-value { color: var(--ink); }
+    .json-row.active .json-key, .json-row.active .json-value { color: var(--accent); text-decoration: underline; text-underline-offset: .2em; }
+    .story { min-width: 0; }
+    .step-kicker { display: flex; align-items: baseline; gap: .5rem; font-size: .75rem; color: var(--muted); }
+    .step-number { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .story h2 { font-size: 1.5rem; line-height: 1.175; margin: .25rem 0 .5rem; min-height: 3.525rem; }
+    .story p { font-size: 1rem; line-height: 1.5; margin: 0; min-height: 6rem; }
+    .field-walk { margin-top: 1rem; }
+    .walk-context { color: var(--muted); font-size: .75rem; margin-bottom: .5rem; }
+    .walk-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .walk-heading { font-size: .875rem; font-weight: 600; margin-bottom: .25rem; }
+    .walk-list { position: relative; list-style: none; padding: 0; margin: 0; min-height: 7rem; }
+    .walk-item { min-height: 1.75rem; padding-left: 1rem; font: .875rem/1.75rem var(--mono); color: var(--muted); }
+    .walk-item.current { color: var(--ink); background: var(--accent-soft); border-radius: var(--radius); }
+    .walk-cursor { position: absolute; top: 0; left: .2rem; color: var(--accent); font: 1rem/1.75rem sans-serif; transition: transform .2s ease; pointer-events: none; }
+    .filter-label { font-size: 1.5rem; line-height: 1.175; margin: 2rem 0 .5rem; }
+    .interaction-hint { margin: 0 0 1.5rem; color: var(--muted); font-size: .875rem; }
+    .diagram { display: grid; grid-template-columns: minmax(11.25rem, .9fr) 1rem minmax(16rem, 1.2fr) 1rem minmax(11rem, 1fr); gap: .4rem; }
+    .column { min-width: 0; }
+    .column-heading { display: flex; align-items: baseline; gap: .5rem; font-size: 1rem; line-height: 1.25; margin: 0 0 .5rem; min-height: 2.5rem; }
+    .column-heading .index { color: var(--muted); font-size: .75rem; font-weight: 400; }
+    .subheading { color: var(--muted); font-size: .875rem; line-height: 1.5; margin: 0; min-height: 3rem; }
+    .trie, .interval-tree { width: 100%; display: block; overflow: visible; }
+    .trie { height: 20rem; }
+    .trie-shell, .tree-shell { position: relative; }
+    .node-controls { position: absolute; inset: 0; pointer-events: none; }
+    .node-hit { position: absolute; display: block; padding: 0; border: 0; border-radius: var(--radius); background: transparent; pointer-events: auto; }
+    .node-hit:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+    .node-hit[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
+    .root-hit { border-radius: 50%; }
+    .trie text { font: .875rem var(--mono); fill: var(--ink); }
+    .trie .trie-path { fill: none; stroke: var(--node-border); stroke-width: 1.5; }
+    .trie .trie-path.selected { stroke: var(--accent); stroke-width: 2; }
+    .trie-node { fill: var(--surface); stroke: var(--node-border); stroke-width: 1; }
+    .trie-node.selected { fill: var(--accent-soft); stroke: var(--accent); }
+    .trie-node.absent { fill: var(--quiet); stroke-dasharray: 3 3; }
+    .trie .root { fill: var(--ink); }
+    .trie .trie-label { font: .75rem system-ui, sans-serif; fill: var(--muted); }
+    .trie .pulse { fill: var(--accent); }
+    .connector { align-self: start; margin-top: 11rem; color: var(--muted); font-size: 1.25rem; }
+    .connector.active { color: var(--accent); }
+    .lookup-key { display: flex; flex-wrap: wrap; align-items: baseline; gap: .375rem; min-height: 3rem; padding-bottom: .5rem; color: var(--muted); font-size: .875rem; }
+    .lookup-key code { color: var(--ink); font-size: inherit; }
+    .interval-tree { height: 20rem; }
+    .interval-tree text { fill: var(--ink); font: .875rem var(--mono); }
+    .interval-tree .edge { fill: none; stroke: var(--node-border); stroke-width: 1.5; }
+    .interval-tree .edge.traversed { stroke: var(--accent); }
+    .interval-tree .edge.pruned { stroke-dasharray: 3 4; }
+    .interval-tree .node-box { fill: var(--surface); stroke: var(--node-border); }
+    .interval-tree .node.match .node-box { fill: var(--accent-soft); stroke: var(--accent); }
+    .interval-tree .node.miss .node-box { fill: var(--surface); stroke: var(--node-border); }
+    .interval-tree .node.pruned .node-box, .interval-tree .node.absent .node-box { fill: var(--quiet); stroke-dasharray: 3 3; }
+    .interval-tree .node.pruned text { fill: var(--muted); }
+    .interval-tree .node.current .node-box { stroke-width: 2; }
+    .interval-tree .node-query { fill: var(--muted); font-size: .75rem; }
+    .interval-tree .node-state { font: .75rem system-ui, sans-serif; }
+    .interval-tree .node-state.match { fill: var(--accent); }
+    .interval-tree .node-state.miss { fill: var(--muted); }
+    .interval-tree .pulse { fill: var(--accent); }
+    .tree-explanation { font-size: .75rem; color: var(--muted); margin-top: .5rem; }
+    .queries { list-style: none; padding: 0; margin: 0; }
+    .query { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr) 1rem; gap: .375rem; align-items: center; width: 100%; min-height: 3rem; border: 0; border-bottom: 1px solid var(--line); padding: .625rem .25rem; text-align: left; background: transparent; color: var(--ink); transition: background .2s; }
+    .queries li:first-child .query { border-top: 1px solid var(--line); }
+    .query:hover { background: var(--quiet); }
+    .query-id { font-size: .75rem; color: var(--muted); }
+    .query-filter { font: .875rem/1.5 var(--mono); }
+    .query-filter .second { display: block; color: var(--muted); }
+    .query-status { text-align: center; font-size: 1rem; color: var(--muted); }
+    .query[data-state="match"] { background: var(--accent-soft); }
+    .query[data-state="match"] .query-id, .query[data-state="match"] .query-status { color: var(--accent); }
+    .query[data-state="miss"] .query-status { color: var(--muted); }
+    .query.current { box-shadow: inset 2px 0 0 var(--accent); }
+    .results { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; padding-top: .75rem; font-size: .875rem; min-height: 2.25rem; }
+    .results strong { font-weight: 600; color: var(--accent); }
+    .results code { font-size: .75rem; }
+    .detail { padding: 1rem 0; border-top: 1px solid var(--line); margin-top: 1.5rem; min-height: 6.5rem; font-size: 1rem; }
+    .detail-dot { display: none; }
+    .controls { display: grid; grid-template-columns: auto auto minmax(4rem, 1fr) auto; align-items: center; gap: .75rem; }
+    /* Match the blog's compact Pico button (Copy Markdown). */
+    .play, .replay { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 44px; margin: 0; padding: .5rem 1rem; border: var(--pico-border-width, .0625rem) solid var(--pico-primary-background); border-radius: var(--radius); font-size: .875rem; line-height: 1.5; transition: background-color .2s, border-color .2s, box-shadow .2s; }
+    .play { background: var(--pico-primary-background); color: var(--pico-primary-inverse); }
+    .play:hover { background: var(--pico-primary-hover-background); border-color: var(--pico-primary-hover-background); }
+    .replay { background: transparent; color: var(--accent); border-color: var(--accent); }
+    .replay:hover { background: var(--accent-soft); }
+    .play:focus-visible, .replay:focus-visible { box-shadow: 0 0 0 .125rem var(--pico-primary-focus); }
+    /* Range geometry follows the installed Pico CSS 2.1.1 controls. */
+    .timeline { appearance: none; width: 100%; min-width: 0; height: 44px; background: transparent; padding: 0; border: 0; margin: 0; cursor: pointer; }
+    .timeline::-webkit-slider-runnable-track { height: .375rem; border-radius: var(--radius); background: var(--pico-range-border-color); }
+    .timeline::-moz-range-track { height: .375rem; border-radius: var(--radius); background: var(--pico-range-border-color); }
+    .timeline::-webkit-slider-thumb { appearance: none; width: 1.25rem; height: 1.25rem; margin-top: -.4375rem; border: 2px solid var(--pico-range-thumb-border-color); border-radius: 50%; background: var(--pico-range-thumb-color); }
+    .timeline::-moz-range-thumb { width: 1.25rem; height: 1.25rem; border: 2px solid var(--pico-range-thumb-border-color); border-radius: 50%; background: var(--pico-range-thumb-color); }
+    .timeline:active, .timeline:focus-visible { --pico-range-border-color: var(--pico-range-active-border-color); --pico-range-thumb-color: var(--pico-range-thumb-active-color); }
+    .time { color: var(--muted); font-size: .75rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem 1.5rem; border-top: 1px solid var(--line); margin-top: 1rem; padding-top: 1rem; font-size: .75rem; color: var(--muted); }
+    .footer a { color: var(--accent); text-underline-offset: .1em; }
+    .footer .scope { flex: 1 1 28rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .no-script { margin: 1rem 0; font-size: 1rem; }
+    :root[data-layout="stacked"] .diagram { grid-template-columns: 1fr; gap: 0; }
+    :root[data-layout="stacked"] .column-heading { min-height: 0; }
+    :root[data-layout="stacked"] .subheading { min-height: 0; }
+    :root[data-layout="stacked"] .subheading br { display: none; }
+    :root[data-layout="stacked"] .connector { display: none; }
+    :root[data-layout="stacked"] .tree-column,
+    :root[data-layout="stacked"] .queries-column { border-top: 1px solid var(--line); margin-top: 1.5rem; padding-top: 1.5rem; }
+    :root[data-layout="stacked"] .lookup-key { min-height: 0; }
+    :root[data-layout="stacked"] .queries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.5rem; }
+    :root[data-layout="stacked"] .queries li:nth-child(2) .query { border-top: 1px solid var(--line); }
+    :root[data-narrow="true"] .arrival { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+    :root[data-narrow="true"] .eyebrow span:last-child { display: none; }
+    :root[data-narrow="true"] .queries { grid-template-columns: 1fr; }
+    :root[data-narrow="true"] .queries li:nth-child(2) .query { border-top: 0; }
+    :root[data-narrow="true"] .controls { grid-template-columns: 1fr 1fr; gap: .5rem; }
+    :root[data-narrow="true"] .play, :root[data-narrow="true"] .replay { min-width: 0; }
+    :root[data-narrow="true"] .timeline { grid-column: 1 / -1; }
+    :root[data-narrow="true"] .time { display: none; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+  </style>
+
+  <script>
+    (() => {
+      // Same-origin embeds inherit the blog's Pico tokens. Standalone use keeps
+      // the fallback palette above; no messaging or third-party code is needed.
+      const host = window.frameElement;
+      if (!host) return;
+      const root = document.documentElement;
+      root.dataset.embedded = '';
+      const syncTheme = () => {
+        const theme = parent.getComputedStyle(host);
+        const tokens = {
+          '--radius': '--pico-border-radius',
+          '--mono': '--pico-font-family-monospace',
+        };
+        for (const [local, pico] of Object.entries(tokens)) {
+          const value = theme.getPropertyValue(pico).trim();
+          if (value) root.style.setProperty(local, value);
+        }
+        // Share the actual control tokens and type scale, not just the palette.
+        for (const name of theme) {
+          if (name.startsWith('--pico-')) root.style.setProperty(name, theme.getPropertyValue(name));
+        }
+        root.style.fontFamily = theme.fontFamily;
+        root.style.fontSize = theme.fontSize;
+        root.style.lineHeight = theme.lineHeight;
+        root.dataset.layout = innerWidth < 44 * parseFloat(theme.fontSize) ? 'stacked' : 'wide';
+        root.dataset.narrow = String(innerWidth < 29 * parseFloat(theme.fontSize));
+        root.style.colorScheme = theme.colorScheme;
+      };
+      syncTheme();
+      const colorScheme = parent.matchMedia('(prefers-color-scheme: dark)');
+      colorScheme.addEventListener('change', syncTheme);
+      const hostResize = new parent.ResizeObserver(syncTheme);
+      hostResize.observe(host);
+      const themeObserver = new MutationObserver(syncTheme);
+      themeObserver.observe(parent.document.documentElement, {
+        attributes: true, attributeFilter: ['data-theme', 'class', 'style'],
+      });
+      document.addEventListener('DOMContentLoaded', () => {
+        const figure = document.querySelector('.figure');
+        const fit = () => {
+          // Measure content, not scrollHeight: scrollHeight includes the old
+          // iframe viewport and would prevent the frame from shrinking.
+          const height = Math.ceil(figure.getBoundingClientRect().height);
+          if (host.style.height !== height + 'px') host.style.height = height + 'px';
+        };
+        const resize = new ResizeObserver(fit);
+        resize.observe(figure);
+        fit();
+      });
+      window.addEventListener('pagehide', () => {
+        themeObserver.disconnect();
+        hostResize.disconnect();
+        colorScheme.removeEventListener('change', syncTheme);
+      }, { once: true });
+    })();
+  </script>
+</head>
+<body>
+  <main class="figure" aria-labelledby="figure-title">
+    <svg class="delivery-path" id="delivery-path" aria-hidden="true"><path id="delivery-route" visibility="hidden"></path><circle id="delivery-pulse" r="4" visibility="hidden"></circle></svg>
+    <header>
+      <div class="eyebrow"><span>FIRESTORE / QUERY MATCHER</span><span>AN ANIMATED LOOK INSIDE</span></div>
+      <h1 id="figure-title">One document. All the right queries.</h1>
+    </header>
+    <section class="arrival" aria-label="Incoming document">
+      <div class="document" id="document">
+        <div class="document-top"><span class="doc-type">New document</span><span class="mono">/messages/m42</span></div>
+        <div class="json" aria-label='Document with priority normal, sender Carlos, text Hello!, and time 2500'>
+          <div>{</div>
+          <div class="json-row" data-field="priority"><span class="json-key">priority:</span><span class="json-value">"normal",</span></div>
+          <div class="json-row" data-field="sender"><span class="json-key">sender:</span><span class="json-value">"Carlos",</span></div>
+          <div class="json-row" data-field="text"><span class="json-key">text:</span><span class="json-value">"Hello!",</span></div>
+          <div class="json-row" data-field="time"><span class="json-key">time:</span><span class="json-value">2500</span></div>
+          <div>}</div>
+        </div>
+      </div>
+      <div class="story">
+        <div class="step-kicker"><span class="step-number" id="step-number">01</span><span class="step-name" id="step-name">THE CHANGE</span></div>
+        <h2 id="story-title">A document arrives.</h2>
+        <p id="story-copy">The queries are already indexed. Now the document comes to them.</p>
+        <div class="field-walk" id="field-walk" aria-label="Intersection of ordered document fields and trie children">
+          <div class="walk-context" id="walk-context">Compare field names · at root</div>
+          <div class="walk-lists">
+            <div><div class="walk-heading">Document fields</div><div class="walk-list" id="document-fields"></div></div>
+            <div><div class="walk-heading">Trie children</div><div class="walk-list" id="trie-fields"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <h2 class="filter-label">Match the document</h2>
+    <p class="interaction-hint">Tap any node or query to pause and inspect. Tap a field to choose its interval tree.</p>
+    <section class="diagram" aria-label="Field trie, interval tree lookup, and query results">
+      <div class="column trie-column">
+        <h3 class="column-heading"><span class="index">01</span> Field prefix trie</h3>
+        <p class="subheading">Shared fields,<br> shared lookup paths.</p>
+        <div class="trie-shell">
+          <svg class="trie" id="field-trie" role="img" aria-label="A field trie with sender, tags, and text branches; time extends sender."></svg>
+          <div class="node-controls" id="field-controls" role="group" aria-label="Choose a field path"></div>
+        </div>
+      </div>
+      <div class="connector" id="lookup-connector" aria-hidden="true">→</div>
+      <div class="column tree-column">
+        <h3 class="column-heading"><span class="index">02</span> <span id="tree-heading">Interval tree · sender</span></h3>
+        <div class="lookup-key"><span>Look up</span><code id="lookup-value">("Carlos")</code></div>
+        <div class="tree-shell">
+          <svg class="interval-tree" id="interval-tree" role="img" aria-label="An interval tree of query filters."></svg>
+          <div class="node-controls" id="interval-controls" role="group" aria-label="Inspect an interval"></div>
+          <div class="tree-explanation" id="tree-explanation">Each node stores an interval and its query IDs.</div>
+        </div>
+      </div>
+      <div class="connector" id="result-connector" aria-hidden="true">→</div>
+      <div class="column queries-column">
+        <h3 class="column-heading"><span class="index">03</span> Listening queries</h3>
+        <ul class="queries" id="queries" aria-label="Registered query filters"></ul>
+        <div class="results" id="results"><span>Matches will collect here.</span></div>
+      </div>
+    </section>
+    <div class="detail"><span class="detail-dot" aria-hidden="true"></span><span id="detail">Walk ordered document fields and trie children together. Only shared field names lead to interval lookups.</span></div>
+    <div class="controls" aria-label="Animation controls">
+      <button class="play" id="play" type="button"><span id="play-symbol" aria-hidden="true">▶</span><span id="play-label">Play</span></button>
+      <button class="replay" id="replay" type="button">↺ Replay</button>
+      <label class="sr-only" for="timeline">Animation progress in seconds</label>
+      <input class="timeline" id="timeline" type="range" min="0" max="21" value="0" step="0.01">
+      <span class="time" id="time" aria-hidden="true">0 / 21</span>
+    </div>
+    <div class="sr-only" id="announcement" aria-live="polite" aria-atomic="true"></div>
+    <footer class="footer">
+      <span class="scope">Creation shown. For an update, match both document versions to identify queries it enters, stays in, or leaves.</span>
+      <a href="https://www.vldb.org/pvldb/vol19/p4130-jacobsson.pdf#page=4" target="_blank" rel="noopener noreferrer">Based on §4.3 ↗</a>
+    </footer>
+    <noscript><p class="no-script">This document matches Q3 (sender = Carlos), Q5 (sender = Carlos and time &gt; 2000), and Q7 (text = Hello!). Enable JavaScript to see the indexed lookups.</p></noscript>
+  </main>
+
+  <script id="matching-model">
+    // A small, scalar-only example of the field-list map and interval trees
+    // described in section 4.3. This is not a Firestore client or full value codec.
+    (() => {
+      const document = Object.freeze({ priority: 'normal', sender: 'Carlos', text: 'Hello!', time: 2500 });
+      const queries = [
+        { id: 'Q1', fields: ['sender'], low: ['Alice'], high: ['Alice'], label: 'sender = Alice' },
+        { id: 'Q2', fields: ['sender'], low: ['Bob'], high: ['Bob'], label: 'sender = Bob' },
+        { id: 'Q3', fields: ['sender'], low: ['Carlos'], high: ['Carlos'], label: 'sender = Carlos' },
+        { id: 'Q4', fields: ['sender', 'time'], low: ['Bob', 1000], high: ['Bob', Infinity], lowOpen: true, label: 'sender = Bob', second: 'time > 1000' },
+        { id: 'Q5', fields: ['sender', 'time'], low: ['Carlos', 2000], high: ['Carlos', Infinity], lowOpen: true, label: 'sender = Carlos', second: 'time > 2000' },
+        { id: 'Q6', fields: ['sender', 'time'], low: ['Carlos', 3000], high: ['Carlos', Infinity], lowOpen: true, label: 'sender = Carlos', second: 'time > 3000' },
+        { id: 'Q7', fields: ['text'], low: ['Hello!'], high: ['Hello!'], label: 'text = Hello!' },
+        { id: 'Q8', fields: ['tags'], low: ['urgent'], high: ['urgent'], label: 'tags = urgent' },
+      ];
+      function compare(a, b) {
+        for (let i = 0; i < Math.min(a.length, b.length); i++) {
+          if (a[i] < b[i]) return -1;
+          if (a[i] > b[i]) return 1;
+        }
+        return Math.sign(a.length - b.length);
+      }
+      function contains(interval, point) {
+        const lo = compare(point, interval.low), hi = compare(point, interval.high);
+        return (lo > 0 || (lo === 0 && !interval.lowOpen)) && (hi < 0 || (hi === 0 && !interval.highOpen));
+      }
+      function buildTree(items) {
+        if (!items.length) return null;
+        const ordered = [...items].sort((a, b) => compare(a.low, b.low));
+        const mid = Math.floor(ordered.length / 2);
+        const node = { ...ordered[mid], left: buildTree(ordered.slice(0, mid)), right: buildTree(ordered.slice(mid + 1)) };
+        node.max = [node.high, node.left?.max, node.right?.max].filter(Boolean).reduce((a, b) => compare(a, b) > 0 ? a : b);
+        return node;
+      }
+      function flatten(node) { return node ? [node, ...flatten(node.left), ...flatten(node.right)] : []; }
+      function search(tree, point) {
+        const matches = [], events = [];
+        function visit(node, parent = null) {
+          if (!node) return;
+          const match = contains(node, point);
+          events.push({ type: 'visit', node: node.id, parent, match });
+          if (match) matches.push(node.id);
+          if (node.left) {
+            if (compare(node.left.max, point) >= 0) visit(node.left, node.id);
+            else events.push({ type: 'prune', node: node.left.id, parent: node.id, ids: flatten(node.left).map(n => n.id), reason: 'max' });
+          }
+          if (node.right) {
+            if (compare(node.low, point) <= 0) visit(node.right, node.id);
+            else events.push({ type: 'prune', node: node.right.id, parent: node.id, ids: flatten(node.right).map(n => n.id), reason: 'start' });
+          }
+        }
+        visit(tree);
+        return { matches, events };
+      }
+      const fieldLists = [['sender'], ['sender', 'time'], ['text'], ['tags']];
+      const groups = fieldLists.map(fields => {
+        const id = fields.join('/');
+        const tree = buildTree(queries.filter(q => q.fields.join('/') === id));
+        const point = fields.map(field => document[field]);
+        const present = fields.every(field => Object.hasOwn(document, field));
+        return { id, fields, tree, point, present, ...(present ? search(tree, point) : { matches: [], events: [] }) };
+      });
+      const trie = { children: [], group: null };
+      groups.forEach((group, index) => {
+        let node = trie;
+        group.fields.forEach(field => {
+          let child = node.children.find(candidate => candidate.field === field);
+          if (!child) {
+            child = { field, children: [], group: null };
+            node.children.push(child);
+            node.children.sort((a, b) => compare([a.field], [b.field]));
+          }
+          node = child;
+        });
+        node.group = index;
+      });
+      function walkDocument(value) {
+        if (!value) return { matches: [], events: [] };
+        const documentFields = Object.keys(value).sort(), matches = [], events = [];
+        const queryIds = node => [
+          ...(node.group === null ? [] : flatten(groups[node.group].tree).map(query => query.id)),
+          ...node.children.flatMap(queryIds),
+        ];
+        function walk(node, start, prefix) {
+          let documentIndex = start, trieIndex = 0;
+          while (trieIndex < node.children.length) {
+            const child = node.children[trieIndex];
+            const documentField = documentFields[documentIndex];
+            const order = documentField === undefined ? 1 : compare([documentField], [child.field]);
+            const decision = order < 0 ? 'skip-document' : order > 0 ? 'skip-trie' : 'match-field';
+            const walkState = { documentFields, documentIndex, trieIndex, trieFields: node.children.map(c => c.field), prefix: [...prefix], decision };
+            const event = { type: 'walk', decision, group: child.group, walk: walkState };
+            if (decision === 'skip-trie') event.ids = queryIds(child);
+            events.push(event);
+            if (decision === 'skip-document') { documentIndex++; continue; }
+            if (decision === 'skip-trie') { trieIndex++; continue; }
+            const group = groups[child.group];
+            const found = search(group.tree, group.fields.map(field => value[field]));
+            matches.push(...found.matches);
+            events.push(...found.events.map(result => ({ ...result, group: child.group, walk: walkState })));
+            // The recursive walk gets its own document cursor. Returning to
+            // this prefix resumes at the next sibling, not at the child cursor.
+            walk(child, documentIndex + 1, [...prefix, child.field]);
+            documentIndex++; trieIndex++;
+          }
+        }
+        walk(trie, 0, []);
+        return { matches, events };
+      }
+      function matchDocument(value) { return walkDocument(value).matches; }
+      function diff(before, after) {
+        const oldMatches = new Set(matchDocument(before)), newMatches = new Set(matchDocument(after));
+        return {
+          entered: [...newMatches].filter(id => !oldMatches.has(id)),
+          stayed: [...newMatches].filter(id => oldMatches.has(id)),
+          left: [...oldMatches].filter(id => !newMatches.has(id)),
+        };
+      }
+      const timeline = [{ at: 0, type: 'arrive', group: 0 }];
+      let at = 1.4;
+      walkDocument(document).events.forEach(event => {
+        timeline.push({ ...event, at: Number(at.toFixed(2)) });
+        at += event.type === 'walk' ? 1.3 : 1.15;
+      });
+      timeline.push({ at: Number(at.toFixed(2)), type: 'deliver', group: 2 });
+      globalThis.QueryMatchingDemo = Object.freeze({ document, queries, groups, trie, timeline, duration: Math.ceil(at + 3), compare, contains, buildTree, flatten, search, walkDocument, matchDocument, diff });
+    })();
+  </script>
+  <script>
+    (() => {
+      const model = globalThis.QueryMatchingDemo;
+      const byId = id => document.getElementById(id);
+      const trieSvg = byId('field-trie'), treeSvg = byId('interval-tree');
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+      const queryList = byId('queries');
+      byId('timeline').max = String(model.duration);
+      queryList.innerHTML = model.queries.map(query => `<li><button type="button" class="query" id="query-${query.id}" data-state="pending" aria-label="Inspect ${query.id}: ${query.label}${query.second ? ` and ${query.second}` : ''}" aria-pressed="false"><span class="query-id">${query.id}</span><span class="query-filter">${query.label}${query.second ? `<span class="second">${query.second}</span>` : ''}</span><span class="query-status" aria-hidden="true">·</span><span class="sr-only status-label">Not checked yet</span></button></li>`).join('');
+      let time = 0, playing = false, frame = null, lastFrame = null, lastEvent = -1, treeGroup = -1;
+      let started = false, inspection = null;
+      let positions = new Map(), triePaths = [];
+      const clamp = (v, min = 0, max = 1) => Math.min(max, Math.max(min, v));
+      const ease = t => t * t * (3 - 2 * t);
+      const format = value => value === Infinity ? '∞' : typeof value === 'string' ? `"${value}"` : String(value);
+      const tuple = values => `(${values.map(format).join(', ')})`;
+      const scale = () => parseFloat(getComputedStyle(document.documentElement).fontSize) / 16;
+      const isVertical = () => innerWidth < 704 * scale();
+      function updateLayout() {
+        document.documentElement.dataset.layout = isVertical() ? 'stacked' : 'wide';
+        document.documentElement.dataset.narrow = String(innerWidth < 464 * scale());
+      }
+      updateLayout();
+      function svgElement(name, attrs = {}, text = '') {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+        for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
+        if (text) el.textContent = text;
+        return el;
+      }
+      function add(parent, name, attrs, text) { const element = svgElement(name, attrs, text); parent.append(element); return element; }
+      function nodeControl(container, id, label, box, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'node-hit';
+        button.id = id;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('aria-pressed', 'false');
+        Object.assign(button.style, {
+          left: `${box.x - box.width / 2}px`, top: `${box.y - box.height / 2}px`,
+          width: `${box.width}px`, height: `${box.height}px`,
+        });
+        button.addEventListener('click', onClick);
+        container.append(button);
+        return button;
+      }
+      function inspectAt(event, selection) {
+        started = true;
+        pause();
+        inspection = selection;
+        time = event.at;
+        lastEvent = -1;
+        treeSvg.getAnimations().forEach(animation => animation.cancel());
+        render();
+        updatePlayButton();
+      }
+      function inspectField(group) {
+        inspectAt(model.timeline.find(event => event.type === 'walk' && event.decision !== 'skip-document' && event.group === group), { type: 'field', group });
+      }
+      function inspectQuery(id) {
+        const event = model.timeline.find(event => event.node === id || event.ids?.includes(id));
+        inspectAt(event, { type: 'query', id, group: event.group });
+      }
+      model.queries.forEach(query => byId(`query-${query.id}`).addEventListener('click', () => inspectQuery(query.id)));
+      function drawTrie() {
+        const w = trieSvg.clientWidth, s = scale(), vertical = isVertical();
+        const compact = vertical && w < 216 * s;
+        const h = (compact ? 360 : vertical ? 252 : 320) * s;
+        trieSvg.style.height = h + 'px';
+        trieSvg.dataset.flow = vertical ? 'down' : 'right';
+        trieSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        trieSvg.replaceChildren();
+        byId('field-controls').replaceChildren();
+        const root = vertical ? { x: w / 2, y: 24 * s } : { x: 8 * s, y: 156 * s };
+        const sender = vertical ? { x: compact ? w / 2 : w * .18, y: (compact ? 88 : 96) * s } : { x: 70 * s, y: 70 * s };
+        const child = vertical ? { x: sender.x, y: (compact ? 158 : 196) * s } : { x: w - 36 * s, y: sender.y };
+        const text = vertical ? { x: compact ? w / 2 : w * .82, y: (compact ? 310 : 96) * s } : { x: sender.x, y: 244 * s };
+        const tags = vertical ? { x: compact ? w / 2 : w * .5, y: (compact ? 240 : 96) * s } : { x: sender.x, y: 156 * s };
+        const paths = vertical ? [
+          `M${root.x},${root.y} C${root.x},${52*s} ${sender.x},${52*s} ${sender.x},${sender.y-24*s}`,
+          `M${sender.x},${sender.y+24*s} V${child.y-24*s}`,
+          compact ? `M${root.x},${root.y} C${8*s},${root.y} ${8*s},${48*s} ${8*s},${72*s} V${text.y-48*s} Q${8*s},${text.y-36*s} ${text.x},${text.y-24*s}`
+            : `M${root.x},${root.y} C${root.x},${52*s} ${text.x},${52*s} ${text.x},${text.y-24*s}`,
+          compact ? `M${root.x},${root.y} C${w-8*s},${root.y} ${w-8*s},${48*s} ${w-8*s},${72*s} V${tags.y-48*s} Q${w-8*s},${tags.y-36*s} ${tags.x},${tags.y-24*s}`
+            : `M${root.x},${root.y} V${tags.y-24*s}`,
+        ] : [
+          `M${root.x},${root.y} C${root.x+12*s},${root.y} ${sender.x-50*s},${sender.y} ${sender.x-38*s},${sender.y}`,
+          `M${sender.x+38*s},${sender.y} H${child.x-32*s}`,
+          `M${root.x},${root.y} C${root.x+12*s},${root.y} ${text.x-44*s},${text.y} ${text.x-32*s},${text.y}`,
+          `M${root.x},${root.y} H${tags.x-32*s}`,
+        ];
+        triePaths = paths.map((d, i) => add(trieSvg, 'path', { d, class: 'trie-path', id: `trie-path-${i}` }));
+        add(trieSvg, 'circle', { cx: root.x, cy: root.y, r: 4*s, class: 'root' });
+        add(trieSvg, 'text', { x: root.x + (vertical ? 13*s : 0), y: root.y + (vertical ? 4*s : -14*s), class: 'trie-label' }, 'root');
+        nodeControl(byId('field-controls'), 'inspect-root', 'Pause at the incoming document', { ...root, width: 44*s, height: 44*s },
+          () => inspectAt(model.timeline[0], { type: 'root' })).classList.add('root-hit');
+        [['sender', sender, 76, 0], ['time', child, 64, 1], ['tags', tags, 64, 3], ['text', text, 64, 2]].forEach(([name, p, size, group]) => {
+          const width = size*s, height = 48*s;
+          add(trieSvg, 'rect', { x: p.x-width/2, y: p.y-height/2, width, height, rx: 4*s, class: 'trie-node', id: `field-${name}` });
+          add(trieSvg, 'text', { x: p.x, y: p.y+5*s, 'text-anchor': 'middle' }, name);
+          nodeControl(byId('field-controls'), `inspect-field-${name}`, `Show the ${model.groups[group].fields.join(' and ')} interval tree`, { ...p, width, height }, () => inspectField(group));
+        });
+        add(trieSvg, 'circle', { r: 4*s, class: 'pulse', id: 'trie-pulse', visibility: 'hidden' });
+      }
+      function drawTree(groupIndex) {
+        const changed = treeGroup >= 0 && treeGroup !== groupIndex;
+        treeGroup = groupIndex;
+        const group = model.groups[groupIndex], w = treeSvg.clientWidth, s = scale();
+        const vertical = isVertical(), compact = vertical && w < 216*s;
+        const h = (compact ? 400 : vertical ? 280 : 320)*s;
+        treeSvg.style.height = h + 'px';
+        treeSvg.dataset.flow = vertical ? 'down' : 'right';
+        treeSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        treeSvg.replaceChildren();
+        byId('interval-controls').replaceChildren();
+        add(treeSvg, 'title', {}, `Interval tree for ${group.fields.join(', ')}`);
+        const label = group.fields.length === 2 ? 'sender + time' : group.id;
+        byId('tree-heading').textContent = `Interval tree · ${label}`;
+        byId('lookup-value').textContent = group.present ? tuple(group.point) : 'no tags field';
+        positions = new Map();
+        const hasChildren = group.tree.left || group.tree.right;
+        const boxWidth = compact ? Math.min(160*s, w-32*s) : vertical ? Math.min(160*s, (w-16*s)/2) : Math.min(152*s, (w-40*s)/2);
+        const boxHeight = (groupIndex === 1 ? 80 : 64)*s;
+        function place(node, x, y, spacing, parent) {
+          if (!node) return;
+          positions.set(node.id, { x, y, width: boxWidth, height: boxHeight, parent });
+          if (vertical) {
+            place(node.left, compact ? x : x-spacing, y+144*s, spacing/2, node.id);
+            place(node.right, compact ? x : x+spacing, y+(compact ? 288 : 144)*s, spacing/2, node.id);
+          } else {
+            place(node.left, w-boxWidth/2-4*s, y-spacing, spacing/2, node.id);
+            place(node.right, w-boxWidth/2-4*s, y+spacing, spacing/2, node.id);
+          }
+        }
+        place(group.tree, vertical ? w/2 : boxWidth/2+4*s,
+          vertical ? (hasChildren ? 48 : 120)*s : 144*s, vertical ? w/4 : 92*s, null);
+        for (const [id, p] of positions) {
+          if (!p.parent) continue;
+          const parent = positions.get(p.parent);
+          const startX = parent.x+parent.width/2, endX = p.x-p.width/2, midX = (startX+endX)/2;
+          const bypass = compact && p.y-parent.y > 200*s;
+          add(treeSvg, 'path', { class: 'edge', id: `edge-${id}`, d: vertical
+            ? bypass ? `M${parent.x},${parent.y+parent.height/2} Q${w-8*s},${parent.y+parent.height/2+16*s} ${w-8*s},${parent.y+parent.height/2+32*s} V${p.y-p.height/2-24*s} Q${w-8*s},${p.y-p.height/2-12*s} ${p.x},${p.y-p.height/2}`
+              : `M${parent.x},${parent.y+parent.height/2} C${parent.x},${p.y-72*s} ${p.x},${p.y-72*s} ${p.x},${p.y-p.height/2}`
+            : `M${startX},${parent.y} C${midX},${parent.y} ${midX},${p.y} ${endX},${p.y}` });
+        }
+        model.flatten(group.tree).forEach(node => {
+          const p = positions.get(node.id), g = add(treeSvg, 'g', { class: 'node', id: `node-${node.id}` });
+          add(g, 'rect', { class: 'node-box', x: p.x-p.width/2, y: p.y-p.height/2, width: p.width, height: p.height, rx: 4*s });
+          const lines = groupIndex === 1 ? [format(node.low[0]), `(${node.low[1]}, ∞)`] : [`[${format(node.low[0])}]`];
+          lines.forEach((line, i) => add(g, 'text', { x: p.x, y: p.y-((lines.length-1)*10*s)+i*20*s, 'text-anchor': 'middle', class: 'node-code' }, line));
+          add(g, 'text', { x: p.x, y: p.y+p.height/2-10*s, 'text-anchor': 'middle', class: 'node-query' }, node.id);
+          add(g, 'text', { x: p.x, y: p.y+p.height/2+20*s, 'text-anchor': 'middle', class: 'node-state', id: `state-${node.id}` });
+          nodeControl(byId('interval-controls'), `inspect-interval-${node.id}`, `Inspect ${node.id}: ${node.label}${node.second ? ` and ${node.second}` : ''}`, p, () => inspectQuery(node.id));
+        });
+        add(treeSvg, 'circle', { r: 4*s, class: 'pulse', id: 'tree-pulse', visibility: 'hidden' });
+        byId('tree-explanation').textContent = !group.present ? 'No tags field: this interval tree is not searched.' : groupIndex === 1
+          ? 'Same sender; time falls in an open-ended interval.'
+          : 'Equality is a single-point interval.';
+        if (changed && !reduced.matches && !inspection) treeSvg.animate([
+          { opacity: .25, transform: 'translateY(4px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ], { duration: 240, easing: 'ease-out' });
+      }
+      function describe(event) {
+        const group = model.groups[event.group];
+        if (event.type === 'arrive') return ['01', 'THE CHANGE', 'A document arrives.', 'Walk its ordered fields and the trie’s children together. Shared names lead to interval lookups.', 'Eight queries are registered. Intersect field names first, then look up the document’s values.'];
+        if (event.type === 'deliver') return ['04', 'THE MATCHES', 'Only the right queries.', 'Q3, Q5, and Q7 match. The field walk selected three interval trees; tags was absent.', 'Q1 and Q4 were skipped using subtree bounds. Q8’s entire interval tree was skipped because the document has no tags field.'];
+        if (event.type === 'walk') {
+          const walk = event.walk, field = walk.documentFields[walk.documentIndex], child = walk.trieFields[walk.trieIndex];
+          if (event.decision === 'skip-document') return ['02', 'FIELD INTERSECTION', `Advance past ${field}.`,
+            `${field} sorts before ${child}. Advance only the document cursor.`,
+            walk.prefix.length ? 'Within [sender], skip text while looking for time. The root’s separate text branch is still considered later.'
+              : 'priority has no corresponding trie child. Advance the document cursor; keep the trie cursor on sender.'];
+          if (event.decision === 'skip-trie') return ['02', 'FIELD INTERSECTION', 'No tags field.',
+            'Back at the root, tags sorts before text. Advance only the trie cursor.',
+            'The parent walk resumes at text after exploring sender. tags is absent, so skip its subtree and Q8 without an interval lookup.'];
+          return ['02', 'FIELD INTERSECTION', `${child} matches.`,
+            `The field names agree. Use ${tuple(group.point)} to search the [${group.fields.join(', ')}] interval tree.`,
+            walk.prefix.length ? 'The sender prefix is already matched. Intersect its child time with the remaining document fields.'
+              : `Both cursors point to ${child}. Match this field, search its interval tree, then explore its children.`];
+        }
+        const titles = ['Start with sender.', 'Extend to sender + time.', 'Also check text.'];
+        const copies = ['The sender field selects its interval tree. The value "Carlos" is the lookup point.', 'Reuse the sender prefix, append time, and look up the tuple ("Carlos", 2500).', 'A document can match different query shapes. Its text value probes a separate tree.'];
+        let detail = '';
+        if (event.type === 'prune') {
+          detail = event.group === 0
+            ? 'Skip Q1: its subtree ends at "Alice", before the lookup value "Carlos".'
+            : 'Skip Q4: ("Bob", ∞) is before ("Carlos", 2500) in tuple order. No interval in that subtree can match.';
+        } else {
+          const messages = {
+            Q2: 'At Q2, "Carlos" is not "Bob". The tree directs the lookup toward larger values.',
+            Q3: 'The point "Carlos" lies in Q3’s equality interval. Add Q3 to the matches.',
+            Q5: '2500 is greater than 2000, with the sender fixed to "Carlos". Add Q5 to the matches.',
+            Q6: 'Q6 starts above 3000. The document’s time is 2500, so this interval does not match.',
+            Q7: 'The point "Hello!" lies in Q7’s equality interval. Add Q7 to the matches.',
+          };
+          detail = messages[event.node];
+        }
+        return ['03', 'INTERVAL LOOKUP', titles[event.group], copies[event.group], detail];
+      }
+      function renderFieldWalk(event) {
+        const walk = event.walk || model.timeline.find(candidate => candidate.walk).walk;
+        const visible = event.type !== 'arrive' && event.type !== 'deliver';
+        byId('field-walk').dataset.decision = visible ? walk.decision : '';
+        byId('walk-context').textContent = event.type === 'deliver' ? 'Field intersection complete' :
+          `Compare field names · ${walk.prefix.length ? `within [${walk.prefix.join(', ')}]` : 'at root'}`;
+        [['document-fields', walk.documentFields, walk.documentIndex], ['trie-fields', walk.trieFields, walk.trieIndex]].forEach(([id, fields, current]) => {
+          const list = byId(id), signature = fields.join('/');
+          if (list.dataset.fields !== signature) {
+            list.replaceChildren();
+            list.dataset.fields = signature;
+            fields.forEach(field => {
+              const item = document.createElement('div'); item.className = 'walk-item'; item.textContent = field; list.append(item);
+            });
+            const cursor = document.createElement('span'); cursor.className = 'walk-cursor'; cursor.textContent = '›'; cursor.setAttribute('aria-hidden', 'true'); list.append(cursor);
+          }
+          list.querySelectorAll('.walk-item').forEach((item, index) => item.classList.toggle('current', visible && index === current));
+          const cursor = list.querySelector('.walk-cursor');
+          cursor.style.visibility = visible && current < fields.length ? 'visible' : 'hidden';
+          const row = list.querySelectorAll('.walk-item')[current];
+          cursor.style.transform = `translateY(${row ? row.offsetTop : 0}px)`;
+        });
+      }
+      function currentIndex() { return model.timeline.findLastIndex(event => event.at <= time); }
+      function render(force = false) {
+        const index = currentIndex(), event = model.timeline[index];
+        if (treeGroup !== event.group || force) drawTree(event.group);
+        if (index !== lastEvent || force) {
+          lastEvent = index;
+          const group = model.groups[event.group], active = event.type !== 'arrive';
+          const words = describe(event);
+          renderFieldWalk(event);
+          ['step-number', 'step-name', 'story-title', 'story-copy', 'detail'].forEach((id, i) => {
+            byId(id).textContent = id === 'step-name' ? words[i][0] + words[i].slice(1).toLowerCase() : words[i];
+          });
+          byId('announcement').textContent = `${words[2]} ${words[4]}`;
+          const queryStates = Object.fromEntries(model.queries.map(q => [q.id, 'pending']));
+          const groupStates = {};
+          for (const past of model.timeline.slice(0, index + 1)) {
+            if (past.type === 'visit') queryStates[past.node] = past.match ? 'match' : 'miss';
+            if (past.type === 'prune') past.ids.forEach(id => { queryStates[id] = 'pruned'; });
+            if (past.type === 'walk' && past.decision === 'skip-trie') past.ids.forEach(id => { queryStates[id] = 'absent'; });
+            if (past.group === event.group) {
+              if (past.type === 'visit') groupStates[past.node] = past.match ? 'match' : 'miss';
+              if (past.type === 'prune') past.ids.forEach(id => { groupStates[id] = 'pruned'; });
+              if (past.type === 'walk' && past.decision === 'skip-trie') past.ids.forEach(id => { groupStates[id] = 'absent'; });
+            }
+          }
+          for (const [id, state] of Object.entries(queryStates)) {
+            const row = byId(`query-${id}`);
+            row.dataset.state = state;
+            row.classList.toggle('current', inspection?.id === id || event.node === id);
+            row.setAttribute('aria-pressed', String(inspection?.id === id));
+            row.querySelector('.query-status').textContent = ({ match: '✓', miss: '×', pruned: '–', absent: '–', pending: '·' })[state];
+            row.querySelector('.status-label').textContent = ({ match: 'Matches', miss: 'Checked, does not match', pruned: 'Skipped using subtree bounds', absent: 'Skipped: tags field is absent', pending: 'Not checked yet' })[state];
+          }
+          for (const [id] of positions) {
+            const state = groupStates[id] || 'pending', isCurrent = inspection?.id === id || event.node === id;
+            byId(`node-${id}`).setAttribute('class', `node ${state}${isCurrent ? ' current' : ''}`);
+            byId(`inspect-interval-${id}`).setAttribute('aria-pressed', String(inspection?.id === id));
+            const stateLabel = byId(`state-${id}`);
+            stateLabel.textContent = ({ match: '✓ match', miss: '× no match', pruned: '− skipped', absent: '− field absent', pending: '' })[state];
+            stateLabel.setAttribute('class', `node-state ${state}`);
+            const edge = byId(`edge-${id}`);
+            if (edge) edge.setAttribute('class', `edge ${state === 'pruned' ? 'pruned' : state !== 'pending' ? 'traversed' : ''}`);
+          }
+          const selected = active ? group.fields : [];
+          ['sender', 'time', 'tags', 'text'].forEach(field => {
+            byId(`field-${field}`).classList.toggle('selected', selected.includes(field));
+            byId(`inspect-field-${field}`).setAttribute('aria-pressed', String(active && field === group.fields.at(-1)));
+          });
+          byId('inspect-root').setAttribute('aria-pressed', String(inspection?.type === 'root'));
+          byId('field-tags').classList.toggle('absent', queryStates.Q8 === 'absent');
+          document.querySelectorAll('.json-row').forEach(row => {
+            const field = row.dataset.field;
+            const current = event.walk?.documentFields[event.walk.documentIndex];
+            row.classList.toggle('active', event.type === 'walk' ? field === current : active && selected.includes(field) && event.type !== 'deliver');
+          });
+          triePaths.forEach((path, i) => path.classList.toggle('selected', active && (event.group === 0 ? i === 0 : event.group === 1 ? i < 2 : i === event.group)));
+          byId('lookup-connector').classList.toggle('active', active && group.present && event.type !== 'deliver' && (event.type !== 'walk' || event.decision === 'match-field'));
+          byId('result-connector').classList.toggle('active', event.match || event.type === 'deliver');
+          const matches = model.queries.filter(q => queryStates[q.id] === 'match').map(q => q.id);
+          byId('results').replaceChildren();
+          const resultLabel = document.createElement(matches.length ? 'strong' : 'span');
+          resultLabel.textContent = matches.length ? `${matches.length} match${matches.length === 1 ? '' : 'es'}` : 'No matches yet.';
+          byId('results').append(resultLabel);
+          if (matches.length) { const ids = document.createElement('code'); ids.textContent = matches.join(' · '); byId('results').append(ids); }
+          treeSvg.setAttribute('aria-label', `Interval tree for ${group.fields.join(' and ')}. Looking up ${tuple(group.point)}. ${words[4]}`);
+        }
+        byId('timeline').value = String(time);
+        byId('timeline').setAttribute('aria-valuetext', `${time.toFixed(1)} of ${model.duration} seconds. ${byId('story-title').textContent}`);
+        byId('time').textContent = `${Math.floor(time)} / ${model.duration}`;
+        animate(event);
+      }
+      function moveAlong(pulse, path, fraction) {
+        const point = path.getPointAtLength(path.getTotalLength() * clamp(fraction));
+        pulse.setAttribute('cx', point.x); pulse.setAttribute('cy', point.y); pulse.setAttribute('visibility', 'visible');
+      }
+      function animate(event) {
+        const triePulse = byId('trie-pulse'), treePulse = byId('tree-pulse');
+        const deliveryRoute = byId('delivery-route'), deliveryPulse = byId('delivery-pulse');
+        triePulse.setAttribute('visibility', 'hidden'); treePulse.setAttribute('visibility', 'hidden');
+        deliveryRoute.setAttribute('visibility', 'hidden'); deliveryPulse.setAttribute('visibility', 'hidden');
+        byId('document').style.transform = !reduced.matches && !inspection && time < 1.2 ? `${isVertical() ? 'translateY' : 'translateX'}(${-12 * (1 - ease(clamp(time / 1.2)))}px)` : '';
+        if (reduced.matches || inspection) return;
+        const elapsed = time - event.at;
+        if (event.type === 'walk' && event.decision === 'match-field' && elapsed < 1.1) {
+          const paths = event.group === 0 ? [triePaths[0]] : event.group === 1 ? [triePaths[0], triePaths[1]] : [triePaths[2]];
+          const total = paths.reduce((sum, path) => sum + path.getTotalLength(), 0);
+          let length = ease(clamp(elapsed / .9)) * total;
+          for (const path of paths) {
+            if (length <= path.getTotalLength()) { moveAlong(triePulse, path, length / path.getTotalLength()); break; }
+            length -= path.getTotalLength();
+          }
+        }
+        if (event.type === 'visit' && elapsed < .45) {
+          if (event.parent) moveAlong(treePulse, byId(`edge-${event.node}`), ease(elapsed / .45));
+          else {
+            const p = positions.get(event.node);
+            treePulse.setAttribute('cx', isVertical() ? p.x : 1 + ease(clamp(elapsed / .45)) * (p.x - p.width / 2 - 1));
+            treePulse.setAttribute('cy', isVertical() ? 1 + ease(clamp(elapsed / .45)) * (p.y - p.height / 2 - 1) : p.y);
+            treePulse.setAttribute('visibility', 'visible');
+          }
+        }
+        if (event.match && elapsed >= .45 && elapsed < 1.13) {
+          const outer = document.querySelector('.figure').getBoundingClientRect();
+          const node = byId(`node-${event.node}`).querySelector('.node-box').getBoundingClientRect();
+          const row = byId(`query-${event.node}`).getBoundingClientRect();
+          const mobile = isVertical();
+          const x1 = (mobile ? node.left + node.width / 2 : node.right) - outer.left;
+          const y1 = (mobile ? node.bottom : node.top + node.height / 2) - outer.top;
+          const x2 = row.left - outer.left + (mobile ? row.width / 2 : 0);
+          const y2 = (mobile ? row.top : row.top + row.height / 2) - outer.top;
+          // On narrow screens, keep the long route in the outer gutter so it
+          // cannot cross tree labels or other query rows.
+          const gutter = outer.width - 6;
+          deliveryRoute.setAttribute('d', mobile
+            ? `M${x1},${y1} C${x1},${y1 + 18} ${gutter},${y1 + 18} ${gutter},${y1 + 36} V${y2 - 16} Q${gutter},${y2} ${gutter - 16},${y2} H${x2}`
+            : `M${x1},${y1} C${x1 + 45},${y1} ${x2 - 35},${y2} ${x2},${y2}`);
+          deliveryRoute.setAttribute('visibility', 'visible');
+          moveAlong(deliveryPulse, deliveryRoute, ease((elapsed - .45) / .68));
+        }
+      }
+      function updatePlayButton() {
+        byId('play-label').textContent = playing ? 'Pause' : time >= model.duration ? 'Replay' : 'Play';
+        byId('play-symbol').textContent = playing ? 'Ⅱ' : time >= model.duration ? '↺' : '▶';
+      }
+      function tick(timestamp) {
+        if (!playing) return;
+        if (lastFrame !== null) time = Math.min(model.duration, time + (timestamp - lastFrame) / 1000);
+        lastFrame = timestamp;
+        render();
+        if (time >= model.duration) { pause(); return; }
+        frame = requestAnimationFrame(tick);
+      }
+      function play() {
+        if (playing) return;
+        started = true;
+        inspection = null;
+        lastEvent = -1;
+        if (time >= model.duration) time = 0;
+        playing = true; lastFrame = null; render(); updatePlayButton(); frame = requestAnimationFrame(tick);
+      }
+      function pause() { playing = false; cancelAnimationFrame(frame); frame = null; lastFrame = null; updatePlayButton(); }
+      byId('play').addEventListener('click', () => playing ? pause() : play());
+      byId('replay').addEventListener('click', () => { pause(); inspection = null; time = 0; render(); play(); });
+      byId('timeline').addEventListener('input', event => { started = true; pause(); inspection = null; lastEvent = -1; time = Number(event.target.value); render(); updatePlayButton(); });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+      reduced.addEventListener('change', () => { if (reduced.matches) pause(); render(); });
+      const resize = new ResizeObserver(() => { updateLayout(); drawTrie(); render(true); });
+      resize.observe(trieSvg); resize.observe(treeSvg);
+      drawTrie(); render(); updatePlayButton();
+      // Start only once the figure is on screen. Reduced-motion visitors can
+      // scrub or press Play; spatial motion remains disabled in either case.
+      const visibility = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !started) { started = true; if (!reduced.matches) play(); }
+          else if (!entry.isIntersecting) pause();
+        }
+      }, { threshold: .1 });
+      visibility.observe(document.querySelector('.figure'));
+    })();
+  </script>
+</body>
+</html>
